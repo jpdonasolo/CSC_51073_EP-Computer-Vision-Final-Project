@@ -23,11 +23,10 @@ def parse_args():
     parser.add_argument("--local-datasets-dir", type=str, default=default_local_datasets_dir)
     parser.add_argument("--outdir", type=str, default=default_outdir)
     parser.add_argument("--train-size", type=float, default=0.8)
-    parser.add_argument("--val-size", type=float, default=0.2)
     parser.add_argument("--clear-outdir", action="store_false")
     args = parser.parse_args()
     
-    assert abs(args.train_size + args.val_size - 1) <= 1e-6, "Train and val size must sum to 1"
+    assert 0 <= args.train_size <= 1, "Train size must be between 0 and 1"
     assert os.path.exists(args.kaggle_dir)
     assert os.path.exists(args.local_datasets_dir)
 
@@ -77,7 +76,6 @@ def main(
     local_datasets_dir: str,
     outdir: str,
     train_size: float,
-    val_size: float,
     clear_outdir: bool,
 ):
     np.random.seed(RANDOM_SEED)
