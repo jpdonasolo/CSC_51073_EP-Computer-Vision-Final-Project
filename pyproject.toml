@@ -7,5 +7,7 @@ requires-python = ">=3.9"
 dependencies = [
     "kaggle>=1.7.4.5",
     "kagglehub>=0.3.13",
+    "numpy>=2.0.2",
     "patool>=1.15.0",
+    "polars>=1.35.2",
 ]
