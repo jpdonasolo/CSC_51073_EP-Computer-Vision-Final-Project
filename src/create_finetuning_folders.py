@@ -1,0 +1,91 @@
+import os
+import shutil
+import argparse
+from glob import glob
+
+
+import numpy as np
+
+
+RANDOM_SEED = 1
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    default_kaggle_dir = os.path.expanduser("~/.cache/kagglehub/datasets/")
+    default_local_datasets_dir = os.path.join(HERE, "../datasets")
+    default_outdir = os.path.join(HERE, "../finetuning")
+    
+    parser.add_argument("--kaggle-dir", type=str, default=default_kaggle_dir)
+    parser.add_argument("--local-datasets-dir", type=str, default=default_local_datasets_dir)
+    parser.add_argument("--outdir", type=str, default=default_outdir)
+    parser.add_argument("--train-size", type=float, default=0.8)
+    parser.add_argument("--val-size", type=float, default=0.2)
+    parser.add_argument("--clear-outdir", action="store_false")
+    args = parser.parse_args()
+    
+    assert abs(args.train_size + args.val_size - 1) <= 1e-6, "Train and val size must sum to 1"
+    assert os.path.exists(args.kaggle_dir)
+    assert os.path.exists(args.local_datasets_dir)
+
+    return args
+
+
+def create_dirs(
+    outdir: str,
+):
+    os.makedirs(outdir, exist_ok=True)
+    os.makedirs(os.path.join(outdir, "train"), exist_ok=True)
+    os.makedirs(os.path.join(outdir, "val"), exist_ok=True)
+
+    labels = ["push-up"]
+    for label in labels:
+        os.makedirs(os.path.join(outdir, "train", label), exist_ok=True)
+        os.makedirs(os.path.join(outdir, "val", label), exist_ok=True)
+
+def main(
+    kaggle_dir: str,
+    local_datasets_dir: str,
+    outdir: str,
+    train_size: float,
+    val_size: float,
+    clear_outdir: bool,
+):
+    np.random.seed(RANDOM_SEED)
+
+
+    if clear_outdir:
+        print(f"Clearing outdir: {outdir}")
+        for file in os.listdir(outdir):
+            shutil.rmtree(os.path.join(outdir, file), ignore_errors=True)
+
+    create_dirs(outdir)
+
+
+    workoutfitness_dir = os.path.join(kaggle_dir, "hasyimabdillah/workoutfitness-video/versions/5")
+    assert os.path.exists(workoutfitness_dir)
+    print(f"Processing Kaggle dataset: workoutfitness-video")
+    
+    # push-ups
+    pushup_dir = os.path.join(workoutfitness_dir, "push-up")
+    videos = os.listdir(pushup_dir)
+    n_videos = len(videos)
+    n_train = int(n_videos * train_size)
+    
+    video_indices = np.random.permutation(list(range(n_videos)))
+    train_indices = video_indices[:n_train]
+    val_indices = video_indices[n_train:]
+
+    # Copy train and val videos to outdir
+    for idx in train_indices:
+        shutil.copy(os.path.join(pushup_dir, videos[idx]), os.path.join(outdir, "train", "push-up", videos[idx]))
+    for idx in val_indices:
+        shutil.copy(os.path.join(pushup_dir, videos[idx]), os.path.join(outdir, "val", "push-up", videos[idx]))
+
+
+
+if __name__ == "__main__":
+    main(**parse_args().__dict__)
