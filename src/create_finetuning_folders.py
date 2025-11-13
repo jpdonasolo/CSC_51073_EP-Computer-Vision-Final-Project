@@ -41,7 +41,7 @@ def create_dirs(
     os.makedirs(os.path.join(outdir, "train"), exist_ok=True)
     os.makedirs(os.path.join(outdir, "val"), exist_ok=True)
 
-    labels = ["push-up"]
+    labels = ["push-up", "pull-up", "plank", "squat"]
     for label in labels:
         os.makedirs(os.path.join(outdir, "train", label), exist_ok=True)
         os.makedirs(os.path.join(outdir, "val", label), exist_ok=True)
@@ -69,21 +69,32 @@ def main(
     assert os.path.exists(workoutfitness_dir)
     print(f"Processing Kaggle dataset: workoutfitness-video")
     
-    # push-ups
-    pushup_dir = os.path.join(workoutfitness_dir, "push-up")
-    videos = os.listdir(pushup_dir)
-    n_videos = len(videos)
-    n_train = int(n_videos * train_size)
+    label_to_dir = {
+        "push-up": "push-up",
+        "pull-up": "pull Up",
+        "plank": "plank",
+        "squat": "squat",
+    }
     
-    video_indices = np.random.permutation(list(range(n_videos)))
-    train_indices = video_indices[:n_train]
-    val_indices = video_indices[n_train:]
+    for label, dataset_folder_name in label_to_dir.items():
+        
+        # Create path to dataset folder
+        dataset_folder_path = os.path.join(workoutfitness_dir, dataset_folder_name)
+        
+        # Split videos in train and val
+        videos = os.listdir(dataset_folder_path)
+        n_videos = len(videos)
+        n_train = int(n_videos * train_size)
+        
+        video_indices = np.random.permutation(list(range(n_videos)))
+        train_indices = video_indices[:n_train]
+        val_indices = video_indices[n_train:]
 
-    # Copy train and val videos to outdir
-    for idx in train_indices:
-        shutil.copy(os.path.join(pushup_dir, videos[idx]), os.path.join(outdir, "train", "push-up", videos[idx]))
-    for idx in val_indices:
-        shutil.copy(os.path.join(pushup_dir, videos[idx]), os.path.join(outdir, "val", "push-up", videos[idx]))
+        # Copy train and val videos to outdir
+        for idx in train_indices:
+            shutil.copy(os.path.join(dataset_folder_path, videos[idx]), os.path.join(outdir, "train", label, videos[idx]))
+        for idx in val_indices:
+            shutil.copy(os.path.join(dataset_folder_path, videos[idx]), os.path.join(outdir, "val", label, videos[idx]))
 
 
 
