@@ -1,3 +1,14 @@
+"""
+Download the datasets used in the project from the internet. Kaggle datasets
+are saved in the default kaggle cache directory. Other datasets are downloaded
+and extracted into a `datasets` folder in the root directory.
+
+Usage:
+```
+uv run download_datasets.py [--abs-path-outdir <path/to/out/dir> --force-download]
+```
+"""
+
 import kagglehub
 import requests
 import os

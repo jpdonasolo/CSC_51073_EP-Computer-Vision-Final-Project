@@ -1,3 +1,23 @@
+"""
+Create the finetuning dataset. The folder structure will be:
+```
+finetuning/
+├── train/
+│   ├── label_1
+│   ├── label_2/
+│   └── ...
+└── val/
+    ├── label_1
+    ├── label_2/
+    └── ...
+```
+
+Usage:
+```
+uv run create_finetuning_folders.py [--kaggle-dir <path/to/kaggle/dir> --local-datasets-dir <path/to/local/datasets/dir> --outdir <path/to/out/dir> --train-size train_size --clear-outdir]
+```
+"""
+
 import os
 import shutil
 import argparse
