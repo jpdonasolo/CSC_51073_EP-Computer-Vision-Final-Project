@@ -34,7 +34,7 @@ def parse_args():
     return args
 
 
-def create_dirs(
+def create_output_dirs(
     outdir: str,
     labels: list[str] = ["push-up", "pull-up", "plank", "squat"]
 ):
@@ -88,7 +88,7 @@ def main(
         for file in os.listdir(outdir):
             shutil.rmtree(os.path.join(outdir, file), ignore_errors=True)
 
-    create_dirs(outdir)
+    create_output_dirs(outdir)
 
 
     workoutfitness_dir = os.path.join(kaggle_dir, "hasyimabdillah/workoutfitness-video/versions/5")
