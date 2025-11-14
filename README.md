@@ -16,7 +16,9 @@ Before running the code, your root folder should look like this:
 
 ```
 .
-├── download_datasets.py
+├── src
+│   ├── file_1.py
+│   └── ...
 ├── pyproject.toml
 ├── rar
 │   ├── rar
@@ -26,4 +28,4 @@ Before running the code, your root folder should look like this:
 └── uv.lock
 ```
 
-Then, you can rode the code with `uv run download_datasets.py`
+Then, you can rode the code with `uv run <path/to/file.py>`
