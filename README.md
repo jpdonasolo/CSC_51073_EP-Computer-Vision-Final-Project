@@ -24,8 +24,14 @@ Before running the code, your root folder should look like this:
 │   ├── rar
 │   ├── unrar
 │   └── ...
+├── finetuning
+│   ├── train
+│   └── val
 ├── README.md
 └── uv.lock
 ```
 
 Then, you can rode the code with `uv run <path/to/file.py>`
+
+## Finetuning
+Follow the installation process [here](https://github.com/fcakyon/video-transformers#)
