@@ -24,6 +24,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "finetuning", "train"))  #train #val
 MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
 NUM_FRAMES = 8
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+print(f"Using device: {DEVICE}")
 
 
 # Normalize pretrained K400 labels → Finetuning folder names
@@ -51,8 +54,7 @@ def main():
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
     model = TimesformerForVideoClassification.from_pretrained(MODEL_NAME)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
+    model.to(DEVICE)
 
     # List action categories from folder structure
     categories = sorted([d for d in os.listdir(ROOT) if os.path.isdir(os.path.join(ROOT, d))])
@@ -68,7 +70,7 @@ def main():
             frames = load_frames(video_path, NUM_FRAMES)
 
             inputs = processor(frames, return_tensors="pt")
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+            inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
             with torch.no_grad():
                 logits = model(**inputs).logits
