@@ -15,13 +15,11 @@ import os
 import urllib3
 import subprocess
 import argparse
-
-
-if not os.path.exists("rar/unrar"):
-    raise FileNotFoundError("`unrar` executable not found. Download and unpack it from https://www.win-rar.com/download.html")
+import warnings
 
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+UNRAR_AVAILABLE = os.path.exists(os.path.join(ROOT_DIR, "rar", "unrar"))
 
 
 def parse_args():
@@ -60,36 +58,40 @@ def main(
         path = kagglehub.dataset_download("mohamadashrafsalama/pushup")
 
 
-    if "UCF101" in datasets:
-        # https://www.crcv.ucf.edu/data/UCF101.php
-        print("Downloading dataset: UCF101")
-        url = "https://www.crcv.ucf.edu/data/UCF101/UCF101.rar"
-        local_path = os.path.join(abs_path_outdir, "UCF101.rar")
-        
-        if not os.path.exists(local_path) or force_download:
-            with requests.get(url, verify=False, stream=True) as response:
-                response.raise_for_status()
-
-                total_size = int(response.headers.get('content-length', 0)) / 1024 / 1024
-                downloaded = 0
-
-                with open(local_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=16384):
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk) / 1024 / 1024
-                            if total_size > 0:
-                                percent = (downloaded / total_size) * 100
-                                print(f"\rProgress: {percent:.1f}% ({downloaded:.1f}/{total_size:.1f} MB)", end='', flush=True)
+    if "UCF101" in datasets and not UNRAR_AVAILABLE:
+        if not UNRAR_AVAILABLE:
+            warnings.warn("`unrar` executable not found. Download and unpack it from https://www.win-rar.com/download.html")
         
         else:
-            print("Dataset UCF101 already exists. Skipping download")
+            # https://www.crcv.ucf.edu/data/UCF101.php
+            print("Downloading dataset: UCF101")
+            url = "https://www.crcv.ucf.edu/data/UCF101/UCF101.rar"
+            local_path = os.path.join(abs_path_outdir, "UCF101.rar")
+            
+            if not os.path.exists(local_path) or force_download:
+                with requests.get(url, verify=False, stream=True) as response:
+                    response.raise_for_status()
 
-        print("Extracting dataset: UCF101")
-        if os.path.exists(os.path.join(abs_path_outdir, "UCF-101")):
-            print("Dataset UCF101 already extracted. Skipping extraction")
-            return
-        subprocess.run([f"{ROOT_DIR}/rar/unrar",  "x", local_path, abs_path_outdir], check=True)
+                    total_size = int(response.headers.get('content-length', 0)) / 1024 / 1024
+                    downloaded = 0
+
+                    with open(local_path, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=16384):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk) / 1024 / 1024
+                                if total_size > 0:
+                                    percent = (downloaded / total_size) * 100
+                                    print(f"\rProgress: {percent:.1f}% ({downloaded:.1f}/{total_size:.1f} MB)", end='', flush=True)
+            
+            else:
+                print("Dataset UCF101 already exists. Skipping download")
+
+            print("Extracting dataset: UCF101")
+            if os.path.exists(os.path.join(abs_path_outdir, "UCF-101")):
+                print("Dataset UCF101 already extracted. Skipping extraction")
+                return
+            subprocess.run([f"{ROOT_DIR}/rar/unrar",  "x", local_path, abs_path_outdir], check=True)
 
 if __name__ == "__main__":
     args = parse_args()
