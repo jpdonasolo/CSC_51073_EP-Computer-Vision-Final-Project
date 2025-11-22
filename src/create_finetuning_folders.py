@@ -21,7 +21,7 @@ uv run create_finetuning_folders.py [--kaggle-dir <path/to/kaggle/dir> --local-d
 import os
 import shutil
 import argparse
-from glob import glob
+from pathlib import Path
 
 
 import numpy as np
@@ -45,27 +45,31 @@ def parse_args():
     parser.add_argument("--train-size", type=float, default=0.8)
     parser.add_argument("--clear-outdir", action="store_false")
     args = parser.parse_args()
+
+    args.outdir = Path(args.outdir)
+    args.kaggle_dir = Path(args.kaggle_dir)
+    args.local_datasets_dir = Path(args.local_datasets_dir)
     
     assert 0 <= args.train_size <= 1, "Train size must be between 0 and 1"
-    assert os.path.exists(args.kaggle_dir)
-    assert os.path.exists(args.local_datasets_dir)
+    assert args.kaggle_dir.exists()
+    assert args.local_datasets_dir.exists()
 
     return args
 
 
 def create_output_dirs(
-    outdir: str,
+    outdir: Path,
     labels: list[str] = ["push-up", "pull-up", "plank", "squat"]
 ):
     """Create directory for the finetuning dataset and subdirectories for each label.
     """
-    os.makedirs(outdir, exist_ok=True)
-    os.makedirs(os.path.join(outdir, "train"), exist_ok=True)
-    os.makedirs(os.path.join(outdir, "val"), exist_ok=True)
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / "train").mkdir(parents=True, exist_ok=True)
+    (outdir / "val").mkdir(parents=True, exist_ok=True)
 
     for label in labels:
-        os.makedirs(os.path.join(outdir, "train", label), exist_ok=True)
-        os.makedirs(os.path.join(outdir, "val", label), exist_ok=True)
+        (outdir / "train" / label).mkdir(parents=True, exist_ok=True)
+        (outdir / "val" / label).mkdir(parents=True, exist_ok=True)
 
 def split_videos(dataset_folder_path: str, train_size: float):
     """ Split videos in train and val.
@@ -100,6 +104,8 @@ def main(
 ):
     np.random.seed(RANDOM_SEED)
 
+
+    outdir.mkdir(parents=True, exist_ok=True)
 
     if clear_outdir:
         print(f"Clearing outdir: {outdir}")
