@@ -21,8 +21,7 @@ uv run create_finetuning_folders.py [--kaggle-dir <path/to/kaggle/dir> --local-d
 import os
 import shutil
 import argparse
-from glob import glob
-
+from pathlib import Path
 
 import numpy as np
 
@@ -100,6 +99,8 @@ def main(
 ):
     np.random.seed(RANDOM_SEED)
 
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
 
     if clear_outdir:
         print(f"Clearing outdir: {outdir}")
