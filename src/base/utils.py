@@ -4,7 +4,6 @@ import pathlib
 from typing import List, Tuple
 from pathlib import Path
 from torch.utils.data import Dataset
-from decord import VideoReader, cpu
 import torch
 
 
@@ -53,6 +52,10 @@ class VideoFolderDataset(Dataset):
 
     def _load_frames(self, path: Path) -> List:
         """Load evenly spaced frames from a video using decord."""
+        # decord needs to be imported here to avoid OpenCV GUI conflicts
+        from decord import VideoReader, cpu
+
+
         vr = VideoReader(str(path), ctx=cpu(0))
         total = len(vr)
         if total == 0:
