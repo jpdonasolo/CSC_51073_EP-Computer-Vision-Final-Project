@@ -22,6 +22,9 @@ warnings.filterwarnings(
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TRAIN_ROOT = PROJECT_ROOT / "finetuning" / "train"
 VAL_ROOT = PROJECT_ROOT / "finetuning" / "val"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
+
 
 MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
 BATCH_SIZE = 4
@@ -109,7 +112,6 @@ def train_one_epoch(
     model,
     dataloader,
     optimizer,
-    device,
 ):
     model.train()
     total_loss = 0.0
@@ -117,8 +119,8 @@ def train_one_epoch(
     total_samples = 0
 
     for pixel_values, labels, _ in dataloader:
-        pixel_values = pixel_values.to(device)
-        labels = labels.to(device)
+        pixel_values = pixel_values.to(DEVICE)
+        labels = labels.to(DEVICE)
 
         outputs = model(pixel_values=pixel_values, labels=labels)
         loss = outputs.loss
@@ -141,7 +143,6 @@ def train_one_epoch(
 def evaluate(
     model,
     dataloader,
-    device,
 ):
     model.eval()
     total_loss = 0.0
@@ -150,8 +151,8 @@ def evaluate(
 
     with torch.no_grad():
         for pixel_values, labels, _ in dataloader:
-            pixel_values = pixel_values.to(device)
-            labels = labels.to(device)
+            pixel_values = pixel_values.to(DEVICE)
+            labels = labels.to(DEVICE)
 
             outputs = model(pixel_values=pixel_values, labels=labels)
             loss = outputs.loss
@@ -169,9 +170,6 @@ def evaluate(
 
 
 def main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
     # Load processor and model
     print(f"Loading model: {MODEL_NAME}")
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
@@ -189,7 +187,7 @@ def main():
         num_labels=num_classes,
         ignore_mismatched_sizes=True,  # replace original K400 head
     )
-    model.to(device)
+    model.to(DEVICE)
 
     # Dataloaders
     collate_fn = make_collate_fn(processor)
@@ -221,10 +219,10 @@ def main():
     for epoch in range(1, NUM_EPOCHS + 1):
         print(f"\n===== Epoch {epoch}/{NUM_EPOCHS} =====")
 
-        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, device)
+        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer)
         print(f"[Train] loss={train_loss:.4f}  acc={train_acc*100:.2f}%")
 
-        val_loss, val_acc = evaluate(model, val_loader, device)
+        val_loss, val_acc = evaluate(model, val_loader)
         print(f"[Val]   loss={val_loss:.4f}  acc={val_acc*100:.2f}%")
 
         # Save best checkpoint
