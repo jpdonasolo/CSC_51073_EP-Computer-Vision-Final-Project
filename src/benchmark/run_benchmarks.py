@@ -1,3 +1,19 @@
+"""
+Run benchmark for GPU memory usage and inference time.
+Prints to console
+
+Usage:
+```
+uv run benchmark/run_benchmarks.py 
+    --model-name "model_name"
+    --batch-sizes "batch_size_1,batch_size_2,..."
+    --device [cuda/cpu]
+    --sample-fraction 1.0
+    --checkpoint-path "path/to/checkpoint.pt"
+```
+"""
+
+
 import sys
 from pathlib import Path
 from typing import List
@@ -25,15 +41,23 @@ from base.utils import VideoFolderDataset, make_collate_fn
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, default="timesformer")
-    parser.add_argument("--batch_sizes", type=List[int], default=[1, 4])
+    parser.add_argument("--model-name", type=str, default="timesformer")
+    parser.add_argument("--batch-sizes", type=str, default="1,4")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--sample-fraction", type=float, default=1.0)
     parser.add_argument("--checkpoint-path", type=str, default=None)
-    return parser.parse_args()
+
+    args = parser.parse_args()
+    args.batch_sizes = [int(batch_size) for batch_size in args.batch_sizes.split(",")]
+    return args
 
 
 def benchmark_model(model, dataloader, device: str):
+    """
+    Run the model over the full given dataloader, keeping track of
+    peak GPU memory usage and inference time.
+    """
+
     total_time_inference = 0
     total_time = 0
     model.to(device)
@@ -68,6 +92,10 @@ def main(
     sample_fraction: float,
     checkpoint_path: str,
 ):
+    """
+    Measure GPU memory usage for loading the model and running it over the data set. Keeps track of
+    total processing time and inference time.
+    """
     allocated_memory_before = calculate_gpu_memory_usage()
     processor, model, model_classes = load_model(model_name, checkpoint_path, device)
 
