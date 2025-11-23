@@ -6,11 +6,9 @@ import cv2
 import torch
 from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
-# Paths
+# User imports
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(PROJECT_ROOT / "src/"))
-
-# User imports
 from base.utils import load_finetuned_model, VideoFolderDataset
 
 # Logging
@@ -19,9 +17,6 @@ logging.basicConfig(
     format='[benchmark/utils.py] %(message)s'
 )
 logger = logging.getLogger()
-
-
-CKPT_PATH = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
 
 
 def calculate_dataset_statistics(dataset: VideoFolderDataset):
@@ -41,12 +36,6 @@ def calculate_dataset_statistics(dataset: VideoFolderDataset):
         total_duration_seconds += duration
 
     return num_videos, total_duration_seconds
-
-
-def calculate_gpu_memory_usage() -> Tuple[float, float, float]:
-    MB_CONVERSION_FACTOR = 1024 ** 2
-    allocated_memory = torch.cuda.memory_allocated() / MB_CONVERSION_FACTOR
-    return allocated_memory
 
 def load_model(model_flag: str, checkpoint_path: Path = None, device: str = "cpu"):
     """
