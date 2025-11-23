@@ -29,10 +29,12 @@ def parse_args():
     parser.add_argument("--batch_sizes", type=List[int], default=[1, 4])
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--sample-fraction", type=float, default=1.0)
+    parser.add_argument("--checkpoint-path", type=str, default=None)
     return parser.parse_args()
 
 
 def benchmark_model(model, dataloader, device: str):
+    total_time_inference = 0
     total_time = 0
     model.to(device)
     model.eval()
@@ -43,18 +45,20 @@ def benchmark_model(model, dataloader, device: str):
     with torch.no_grad():
         for pixel_values, labels, _ in dataloader:
 
+            time_start_processing = time.time()
             pixel_values = pixel_values.to(device)
             labels = labels.to(device)
             
-            time_start = time.time()
+            time_start_inference = time.time()
             _ = model(pixel_values=pixel_values, labels=labels)
-            total_time += time.time() - time_start
+            total_time_inference += time.time() - time_start_inference
+            total_time += time.time() - time_start_processing
 
             allocated_memory = calculate_gpu_memory_usage()
             if allocated_memory - memory_usage_before > peak_memory:
                 peak_memory = allocated_memory - memory_usage_before
 
-    return total_time, peak_memory
+    return total_time, total_time_inference, peak_memory
 
 
 def main(
@@ -62,14 +66,12 @@ def main(
     batch_sizes: List[int],
     device: str,
     sample_fraction: float,
+    checkpoint_path: str,
 ):
-
-    CKPT_PATH = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
-
     allocated_memory_before = calculate_gpu_memory_usage()
-    processor, model, model_classes = load_model(model_name, CKPT_PATH, device)
+    processor, model, model_classes = load_model(model_name, checkpoint_path, device)
 
-    logger.info(f"GPU memory usage after loading the model: {calculate_gpu_memory_usage() - allocated_memory_before:.2f}MB")
+    logger.info(f"GPU memory used for loading the model: {calculate_gpu_memory_usage() - allocated_memory_before:.2f}MB")
 
     dataset_root = PROJECT_ROOT / "finetuning" / "train"
     dataset_categories = sorted([d.name for d in dataset_root.iterdir() if d.is_dir()])
@@ -82,10 +84,10 @@ def main(
         indices = random.sample(range(len(dataset)), num_samples)
         dataset = Subset(dataset, indices)
     
-    num_videos, average_duration_seconds = calculate_dataset_statistics(dataset)
+    num_videos, total_video_duration_seconds = calculate_dataset_statistics(dataset)
     
     logger.info(f"Number of videos: {num_videos}")
-    logger.info(f"Average video duration: {average_duration_seconds:.2f}s")
+    logger.info(f"Average video duration: {total_video_duration_seconds / num_videos:.2f}s")
 
     collate_fn = make_collate_fn(processor)
     for batch_size in batch_sizes:
@@ -97,11 +99,12 @@ def main(
             shuffle=False,
             collate_fn=collate_fn
         )
-        total_time, peak_memory = benchmark_model(model, dataloader, device)
-        logger.info(f"Batch size: {batch_size}")
-        logger.info(f"Average second(s) to process a video: {total_time / num_videos:.2f}s")
-        logger.info(f"Average second(s) to process a second of video: {total_time / (average_duration_seconds * num_videos):.2f}s")
-        logger.info(f"Peak dataset memory usage during inference: {peak_memory:.2f}MB")
+        total_time, total_time_inference, peak_memory = benchmark_model(model, dataloader, device)
+        logger.info(f"Total time: {total_time:.2f}s")
+        logger.info(f"Total inference time: {total_time_inference:.2f}s")
+        logger.info(f"Average inference time per video: {total_time_inference / num_videos:.2f}s")
+        logger.info(f"Inference time per second of video: {total_time_inference / (total_video_duration_seconds):.2f}s")
+        logger.info(f"Peak memory usage during inference: {peak_memory:.2f}MB")
     
 
 if __name__ == "__main__":

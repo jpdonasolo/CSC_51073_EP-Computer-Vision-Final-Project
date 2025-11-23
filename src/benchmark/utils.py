@@ -39,10 +39,8 @@ def calculate_dataset_statistics(dataset: VideoFolderDataset):
         fps = video.get(cv2.CAP_PROP_FPS)
         duration = video.get(cv2.CAP_PROP_FRAME_COUNT) / fps
         total_duration_seconds += duration
-    
-    average_duration_seconds = total_duration_seconds / num_videos
-    
-    return num_videos, average_duration_seconds
+
+    return num_videos, total_duration_seconds
 
 
 def calculate_gpu_memory_usage() -> Tuple[float, float, float]:
