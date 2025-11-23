@@ -5,7 +5,7 @@ and extracted into a `datasets` folder in the root directory.
 
 Usage:
 ```
-uv run download_datasets.py [--abs-path-outdir <path/to/out/dir> --force-download]
+uv run download_datasets.py [--abs-path-outdir <path/to/out/dir> --force-download --datasets <dataset1,dataset2,...>]
 ```
 """
 
@@ -27,12 +27,19 @@ ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--abs-path-outdir", type=str, default=os.path.join(ROOT_DIR, "datasets"))
-    parser.add_argument("--force-download", action="store_true")
-    
-    return parser.parse_args()
+    parser.add_argument("--force-download", action="store_true")    
+    parser.add_argument(
+        "--datasets", 
+        type=str, 
+        default="workoutfitness-video", 
+        help="Comma-separated list of datasets to download. Options: [workoutfitness-video,pushup,UCF101]")
+    args = parser.parse_args()
+    args.datasets = args.datasets.split(",")
+    return args
 
 
 def main(
+    datasets: list[str],
     abs_path_outdir: str,
     force_download: bool,
 ):
@@ -41,44 +48,48 @@ def main(
     # For requests download without SSL certificate verification
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # https://www.kaggle.com/datasets/hasyimabdillah/workoutfitness-video
-    print("Downloading dataset: hasyimabdillah/workoutfitness-video")
-    path = kagglehub.dataset_download("hasyimabdillah/workoutfitness-video")
-
-    # https://www.kaggle.com/datasets/mohamadashrafsalama/pushup
-    print("Downloading dataset: mohamadashrafsalama/pushup")
-    path = kagglehub.dataset_download("mohamadashrafsalama/pushup")
+    if "workoutfitness-video" in datasets:
+        # https://www.kaggle.com/datasets/hasyimabdillah/workoutfitness-video
+        print("Downloading dataset: hasyimabdillah/workoutfitness-video")
+        path = kagglehub.dataset_download("hasyimabdillah/workoutfitness-video")
 
 
-    # https://www.crcv.ucf.edu/data/UCF101.php
-    print("Downloading dataset: UCF101")
-    url = "https://www.crcv.ucf.edu/data/UCF101/UCF101.rar"
-    local_path = os.path.join(abs_path_outdir, "UCF101.rar")
-    
-    if not os.path.exists(local_path) or force_download:
-        with requests.get(url, verify=False, stream=True) as response:
-            response.raise_for_status()
+    if "pushup" in datasets:
+        # https://www.kaggle.com/datasets/mohamadashrafsalama/pushup
+        print("Downloading dataset: mohamadashrafsalama/pushup")
+        path = kagglehub.dataset_download("mohamadashrafsalama/pushup")
 
-            total_size = int(response.headers.get('content-length', 0)) / 1024 / 1024
-            downloaded = 0
 
-            with open(local_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=16384):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk) / 1024 / 1024
-                        if total_size > 0:
-                            percent = (downloaded / total_size) * 100
-                            print(f"\rProgress: {percent:.1f}% ({downloaded:.1f}/{total_size:.1f} MB)", end='', flush=True)
-    
-    else:
-        print("Dataset UCF101 already exists. Skipping download")
+    if "UCF101" in datasets:
+        # https://www.crcv.ucf.edu/data/UCF101.php
+        print("Downloading dataset: UCF101")
+        url = "https://www.crcv.ucf.edu/data/UCF101/UCF101.rar"
+        local_path = os.path.join(abs_path_outdir, "UCF101.rar")
+        
+        if not os.path.exists(local_path) or force_download:
+            with requests.get(url, verify=False, stream=True) as response:
+                response.raise_for_status()
 
-    print("Extracting dataset: UCF101")
-    if os.path.exists(os.path.join(abs_path_outdir, "UCF-101")):
-        print("Dataset UCF101 already extracted. Skipping extraction")
-        return
-    subprocess.run([f"{ROOT_DIR}/rar/unrar",  "x", local_path, abs_path_outdir], check=True)
+                total_size = int(response.headers.get('content-length', 0)) / 1024 / 1024
+                downloaded = 0
+
+                with open(local_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=16384):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk) / 1024 / 1024
+                            if total_size > 0:
+                                percent = (downloaded / total_size) * 100
+                                print(f"\rProgress: {percent:.1f}% ({downloaded:.1f}/{total_size:.1f} MB)", end='', flush=True)
+        
+        else:
+            print("Dataset UCF101 already exists. Skipping download")
+
+        print("Extracting dataset: UCF101")
+        if os.path.exists(os.path.join(abs_path_outdir, "UCF-101")):
+            print("Dataset UCF101 already extracted. Skipping extraction")
+            return
+        subprocess.run([f"{ROOT_DIR}/rar/unrar",  "x", local_path, abs_path_outdir], check=True)
 
 if __name__ == "__main__":
     args = parse_args()
