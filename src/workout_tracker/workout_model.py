@@ -30,8 +30,8 @@ class WorkoutBaseModel:
         t.daemon = True
         t.start()
 
-        def _predict_thread(frames):
-            raise NotImplementedError("Subclasses must implement this method")
+    def _predict_thread(frames):
+        raise NotImplementedError("Subclasses must implement this method")
 
     def _predict_with_timeout(self, frames):
         """
@@ -46,6 +46,10 @@ class WorkoutBaseModel:
 
         if t.is_alive():
             print("Thread timed out")
+    
+    def increment_label_count(self, label):
+        with c.LABEL_TO_COUNT_MUTEX:
+            c.LABEL_TO_COUNT[label] += 1
         
 
 class WorkoutModel(WorkoutBaseModel):
@@ -76,7 +80,7 @@ class WorkoutModel(WorkoutBaseModel):
             return
 
         predicted_label = random.choice(self.labels)
-        c.LABEL_TO_COUNT[predicted_label] += 1
+        self.increment_label_count(predicted_label)
 
 
 class WorkoutModel(WorkoutBaseModel):
@@ -114,4 +118,4 @@ class WorkoutModel(WorkoutBaseModel):
         pred_label = self.model.config.id2label[top_idx]
         predicted_label = c.TIMESFORMER_LABEL_NORMALIZATION.get(pred_label, "pause")
         
-        c.LABEL_TO_COUNT[predicted_label] += 1
+        self.increment_label_count(predicted_label)

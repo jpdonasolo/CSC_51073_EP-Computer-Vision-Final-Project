@@ -1,3 +1,8 @@
+import threading
+
+# Mutex to protect the LABEL_TO_COUNT dictionary
+LABEL_TO_COUNT_MUTEX = threading.Lock()
+
 LABEL_TO_COUNT = {
     "push-up": 0,
     "pull-up": 0,
