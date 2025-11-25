@@ -5,7 +5,7 @@ from collections import deque
 import threading
 
 from workout_model import WorkoutModel
-from constants import LABEL_TO_COUNT, INFERENCE_TIMEOUT
+import constants as c
 
 
 def format_time(seconds):
@@ -32,13 +32,13 @@ def main():
     # Assuming ~30 fps, 5 seconds ≈ 150 frames
     frame_buffer = deque(maxlen=150)
 
-    # Current label and inference timing
-    current_label = "pause"
-    last_infer_time = time.time()
-    infer_interval = 2.0  # Run inference every 5 seconds
-
     # Initialize dummy model
-    model = WorkoutModel("timesformer", list(LABEL_TO_COUNT.keys()), timeout=INFERENCE_TIMEOUT)
+    model = WorkoutModel("timesformer", list(c.LABEL_TO_COUNT.keys()), timeout=c.INFERENCE_TIMEOUT)
+
+    # Current label and inference timing
+    current_label = "initializing model..."
+    last_infer_time = time.time()
+    warmup_time = time.time()
 
     try:
         while True:
@@ -53,13 +53,16 @@ def main():
             frame_buffer.append(frame.copy())
 
             # If enough time has passed, run inference on the recent clip
-            if now - last_infer_time >= infer_interval:
+            if now - warmup_time >= c.WARMUP_TIME and now - last_infer_time >= c.PREDICTION_INTERVAL:
                 last_infer_time = now
                 frames_for_model = list(frame_buffer)
 
                 # Call dummy model (replace with real model later)
                 model.predict(frames_for_model)
             # ===== Rendering overlay text =====
+
+            if (last_prediction:=model.get_last_prediction()) is not None:
+                current_label = last_prediction
 
             # Show current label at the top
             cv2.putText(
@@ -76,8 +79,8 @@ def main():
             # Show cumulative time for each label on the left side
             y0 = 60
             dy = 25
-            for i, label in enumerate(LABEL_TO_COUNT.keys()):
-                t_str = format_time(LABEL_TO_COUNT[label])
+            for i, label in enumerate(c.LABEL_TO_COUNT.keys()):
+                t_str = format_time(c.LABEL_TO_COUNT[label])
                 text = f"{label}: {t_str}"
                 cv2.putText(
                     frame,
