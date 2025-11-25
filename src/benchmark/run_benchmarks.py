@@ -30,8 +30,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(PROJECT_ROOT / "src/"))
 
 
-from base.utils import VideoFolderDataset, make_collate_fn
-from utils import load_model, calculate_dataset_statistics
+from base.utils import (
+    VideoFolderDataset, 
+    make_collate_fn, 
+    load_model, 
+    calculate_dataset_statistics,
+)
 
 
 

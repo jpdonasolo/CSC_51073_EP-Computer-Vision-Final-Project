@@ -1,13 +1,21 @@
-import torch
-from transformers import TimesformerForVideoClassification
-import pathlib
-from typing import List, Tuple
 from pathlib import Path
-from torch.utils.data import Dataset
+from typing import List, Tuple
+import logging
+
 import torch
+from torch.utils.data import Dataset
+from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
 
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+logging.basicConfig(
+    level=logging.INFO, 
+    format='[base/utils.py] %(message)s'
+)
+logger = logging.getLogger()
+
 
 
 class VideoFolderDataset(Dataset):
@@ -87,6 +95,32 @@ def make_collate_fn(processor):
 
     return collate
 
+def load_model(model_flag: str, checkpoint_path: Path = None, device: str = "cpu"):
+    """
+    Load either pretrained or finetuned model.
+
+    Available model flags:
+    - timesformer: facebook/timesformer-base-finetuned-k400
+    """
+
+
+    if model_flag == "timesformer":
+        model_name = "facebook/timesformer-base-finetuned-k400"
+        processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
+
+
+        if checkpoint_path:
+            logger.info(f"Loading finetuned {model_name} from {checkpoint_path}")
+            model, classes = load_finetuned_model(model_name, checkpoint_path, device)
+            return processor, model, classes
+        
+        else:
+            logger.info(f"Loading pretrained {model_name}")
+            model = TimesformerForVideoClassification.from_pretrained(model_name).to(device)
+            return processor, model, None
+    
+    else:
+        raise ValueError(f"Invalid model: {model_flag}")
 
 def load_finetuned_model(base_model_name, ckpt_path, device):
     """

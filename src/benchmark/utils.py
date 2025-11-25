@@ -1,15 +1,12 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Tuple
 import cv2
-import torch
-from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
 # User imports
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(PROJECT_ROOT / "src/"))
-from base.utils import load_finetuned_model, VideoFolderDataset
+from base.utils import VideoFolderDataset
 
 # Logging
 logging.basicConfig(
@@ -36,30 +33,3 @@ def calculate_dataset_statistics(dataset: VideoFolderDataset):
         total_duration_seconds += duration
 
     return num_videos, total_duration_seconds
-
-def load_model(model_flag: str, checkpoint_path: Path = None, device: str = "cpu"):
-    """
-    Load either pretrained or finetuned model.
-
-    Available model flags:
-    - timesformer: facebook/timesformer-base-finetuned-k400
-    """
-
-
-    if model_flag == "timesformer":
-        model_name = "facebook/timesformer-base-finetuned-k400"
-        processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
-
-
-        if checkpoint_path:
-            logger.info(f"Loading finetuned {model_name} from {checkpoint_path}")
-            model, classes = load_finetuned_model(model_name, checkpoint_path, device)
-            return processor, model, classes
-        
-        else:
-            logger.info(f"Loading pretrained {model_name}")
-            model = TimesformerForVideoClassification.from_pretrained(model_name).to(device)
-            return processor, model, None
-    
-    else:
-        raise ValueError(f"Invalid model: {model_flag}")

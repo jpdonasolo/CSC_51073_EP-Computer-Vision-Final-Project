@@ -9,7 +9,7 @@ import logging
 import torch
 
 import constants as c
-from benchmark.utils import load_model
+from base.utils import load_model
 
 
 logging.basicConfig(
