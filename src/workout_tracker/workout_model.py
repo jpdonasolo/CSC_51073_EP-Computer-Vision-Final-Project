@@ -59,7 +59,7 @@ class WorkoutBaseModel:
         frames: list of frames (np.ndarray), representing a short video clip.
         Return a label string.
         """
-        random_id = random.randint(1, 1000000)
+        random_id = random.randint(1, 1000000) # Id for debugging only
         logger.info(f"Starting prediction {random_id}")
         prediction_start_time = time.time()
         prediction_result_queue = Queue() # Queue where the thread should store the result
