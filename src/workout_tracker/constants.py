@@ -1,8 +1,3 @@
-import threading
-
-# Mutex to protect the LABEL_TO_COUNT dictionary
-LABEL_TO_COUNT_MUTEX = threading.Lock()
-
 LABEL_TO_COUNT = {
     "push-up": 0,
     "pull-up": 0,
@@ -23,3 +18,9 @@ INFERENCE_TIMEOUT = .8
 
 # Number of frames to sample from the video
 NUM_FRAMES = 8
+
+# Time interval between predictions (seconds)
+PREDICTION_INTERVAL = 0.5
+
+# Time before first prediction (seconds)
+WARMUP_TIME = 2.0
