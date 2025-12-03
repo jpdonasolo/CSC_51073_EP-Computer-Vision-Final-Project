@@ -1,12 +1,16 @@
 import cv2
 import time
-import random
 from collections import deque
-import threading
+import argparse
 
 from workout_model import WorkoutModel
 import constants as c
 
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=str, default=None)
+    return parser.parse_args()
 
 def format_time(seconds):
     """Format seconds as mm:ss for display."""
@@ -16,7 +20,7 @@ def format_time(seconds):
     return f"{m:02d}:{s:02d}"
 
 
-def main():
+def main(output: str = None):
     # Initialize camera (on macOS, AVFOUNDATION is usually the stable backend)
     cap = cv2.VideoCapture(0)
 
@@ -33,21 +37,30 @@ def main():
     frame_buffer = deque(maxlen=150)
 
     # Initialize dummy model
-    model = WorkoutModel("timesformer", list(c.LABEL_TO_COUNT.keys()), timeout=c.INFERENCE_TIMEOUT)
+    model = WorkoutModel(
+        "timesformer", 
+        list(c.LABEL_TO_COUNT.keys()), 
+        timeout=c.INFERENCE_TIMEOUT, 
+        output=output
+    )
 
     # Current label and inference timing
     current_label = "initializing model..."
     last_infer_time = time.time()
     warmup_time = time.time()
+    last_frame_cap = 0
 
     try:
         while True:
             ret, frame = cap.read()
+
             if not ret or frame is None:
                 print("Warning: Failed to read frame from camera.")
                 break
 
             now = time.time()
+            fps = 1 / (now - last_frame_cap)
+            last_frame_cap = now
 
             # Store frame in buffer (later used for model inference)
             frame_buffer.append(frame.copy())
@@ -74,6 +87,18 @@ def main():
                 (0, 255, 0),
                 2,
                 cv2.LINE_AA,
+            )
+
+            # Show fps at the right corner
+            cv2.putText(
+                frame,
+                f"FPS: {fps:.1f}",
+                (500, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                .7,
+                (0, 255, 0),
+                2,
+                cv2.LINE_AA
             )
 
             # Show cumulative time for each label on the left side
@@ -110,4 +135,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args.output)
