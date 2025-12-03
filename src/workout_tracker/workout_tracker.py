@@ -39,15 +39,19 @@ def main():
     current_label = "initializing model..."
     last_infer_time = time.time()
     warmup_time = time.time()
+    last_frame_cap = 0
 
     try:
         while True:
             ret, frame = cap.read()
+
             if not ret or frame is None:
                 print("Warning: Failed to read frame from camera.")
                 break
 
             now = time.time()
+            fps = 1 / (now - last_frame_cap)
+            last_frame_cap = now
 
             # Store frame in buffer (later used for model inference)
             frame_buffer.append(frame.copy())
@@ -74,6 +78,18 @@ def main():
                 (0, 255, 0),
                 2,
                 cv2.LINE_AA,
+            )
+
+            # Show fps at the right corner
+            cv2.putText(
+                frame,
+                f"FPS: {fps:.1f}",
+                (500, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                .7,
+                (0, 255, 0),
+                2,
+                cv2.LINE_AA
             )
 
             # Show cumulative time for each label on the left side
