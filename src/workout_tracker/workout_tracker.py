@@ -1,12 +1,16 @@
 import cv2
 import time
-import random
 from collections import deque
-import threading
+import argparse
 
 from workout_model import WorkoutModel
 import constants as c
 
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=str, default=None)
+    return parser.parse_args()
 
 def format_time(seconds):
     """Format seconds as mm:ss for display."""
@@ -16,7 +20,7 @@ def format_time(seconds):
     return f"{m:02d}:{s:02d}"
 
 
-def main():
+def main(output: str = None):
     # Initialize camera (on macOS, AVFOUNDATION is usually the stable backend)
     cap = cv2.VideoCapture(0)
 
@@ -33,7 +37,12 @@ def main():
     frame_buffer = deque(maxlen=150)
 
     # Initialize dummy model
-    model = WorkoutModel("timesformer", list(c.LABEL_TO_COUNT.keys()), timeout=c.INFERENCE_TIMEOUT)
+    model = WorkoutModel(
+        "timesformer", 
+        list(c.LABEL_TO_COUNT.keys()), 
+        timeout=c.INFERENCE_TIMEOUT, 
+        output=output
+    )
 
     # Current label and inference timing
     current_label = "initializing model..."
@@ -126,4 +135,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args.output)
