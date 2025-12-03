@@ -24,3 +24,7 @@ PREDICTION_INTERVAL = 0.5
 
 # Time before first prediction (seconds)
 WARMUP_TIME = 2.0
+
+# Temeprature lower than one to counterweight the fact that
+# "pause" is the most likely label.
+TEMPERATURE = 0.5

@@ -76,7 +76,7 @@ class WorkoutBaseModel:
     
         (prediction_label, probs) = prediction_result_queue.get()
 
-        prediction_start_str = time.strftime('%H:%M:%S.%f', time.localtime())
+        prediction_start_str = time.strftime('%H:%M:%S.%s', time.localtime())
         probs["timestamp"] = prediction_start_str
         self._recorder.record(probs)
 
@@ -178,7 +178,7 @@ class WorkoutModel(WorkoutBaseModel):
         pixel_values = inputs["pixel_values"].to(self.device)
 
         with torch.no_grad():
-            logits = self.model(pixel_values=pixel_values).logits
+            logits = self.model(pixel_values=pixel_values).logits / c.TEMPERATURE
             probs = logits.softmax(dim=-1)[0]
             top_idx = probs.argmax().item()
 
