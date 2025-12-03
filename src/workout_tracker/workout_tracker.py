@@ -34,7 +34,7 @@ def main(output: str = None):
 
     # Buffer to store recent frames (last 5 seconds)
     # Assuming ~30 fps, 5 seconds ≈ 150 frames
-    frame_buffer = deque(maxlen=150)
+    frame_buffer = deque(maxlen=c.BUFFER_SIZE)
 
     # Initialize dummy model
     model = WorkoutModel(

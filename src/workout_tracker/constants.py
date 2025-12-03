@@ -14,17 +14,21 @@ TIMESFORMER_LABEL_NORMALIZATION = {
 }
 
 # Timeout for the inference thread
-INFERENCE_TIMEOUT = .8
+INFERENCE_TIMEOUT = .5
 
 # Number of frames to sample from the video
 NUM_FRAMES = 8
 
+# Buffer size for the frame buffer
+# Assume 30fps
+BUFFER_SIZE = 60
+
 # Time interval between predictions (seconds)
-PREDICTION_INTERVAL = 0.5
+PREDICTION_INTERVAL = 0.1
 
 # Time before first prediction (seconds)
 WARMUP_TIME = 2.0
 
 # Temeprature lower than one to counterweight the fact that
 # "pause" is the most likely label.
-TEMPERATURE = 0.5
+TEMPERATURE = 0.9
