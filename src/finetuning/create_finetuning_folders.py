@@ -31,7 +31,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 LABELS = ["push-up", "pull-up", "plank", "squat", "russian-twist"]
-
+DEFAULT_LABEL_TO_DIR = {x: x for x in LABELS}
 
 
 def parse_args():
@@ -117,12 +117,11 @@ def main(
     print(f"Processing Kaggle dataset: workoutfitness-video")
     
     label_to_dir = {
-        "push-up": "push-up",
         "pull-up": "pull Up",
-        "plank": "plank",
-        "squat": "squat",
         "russian-twist": "russian twist",
     }
+    # Use default label to dir for the rest of the labels
+    label_to_dir = {k: label_to_dir.get(k, v) for k, v in DEFAULT_LABEL_TO_DIR.items()}
     assert set(label_to_dir.keys()) == set(LABELS)
     
     for label, dataset_folder_name in label_to_dir.items():
@@ -139,7 +138,71 @@ def main(
         for video in val_videos:
             shutil.copy(os.path.join(dataset_folder_path, video), os.path.join(outdir, "val", label, video))
 
+    
+    dataset_bao2_dir = os.path.join(kaggle_dir, "bluebirdss/dataset-bao2/versions/1/data_mae")
+    assert os.path.exists(dataset_bao2_dir)
+    print(f"Processing Kaggle dataset: dataset-bao2")
+    
+    label_to_dir = {
+        "pull-up": "pull up",
+        "russian-twist": "russian twist",
+    }
+    label_to_dir = {k: label_to_dir.get(k, v) for k, v in DEFAULT_LABEL_TO_DIR.items()}
+    assert set(label_to_dir.keys()) == set(LABELS)
 
+    # Hardcoded train/val/test counts for dataset-bao2
+    bao2_counts = {
+        "plank": (16, 5, 1),
+        "push-up": (44, 13, 2),
+        "pull-up": (12, 5, 0),
+        "squat": (40, 12, 1),
+        "russian-twist": (14, 5, 0),
+    }
+    assert set(bao2_counts.keys()) == set(label_to_dir.keys())
+    
+    train_root_dir = os.path.join(dataset_bao2_dir, "train")
+    val_root_dir = os.path.join(dataset_bao2_dir, "val")
+    test_root_dir = os.path.join(dataset_bao2_dir, "test")
+    
+    for label, dataset_folder_name in label_to_dir.items():
+            
+        train_count, val_count, test_count = bao2_counts[label]
+        total_count = train_count + val_count + test_count
+        desired_train_count = int(total_count * train_size)
+        
+        train_label_dir = os.path.join(train_root_dir, dataset_folder_name)
+        val_label_dir = os.path.join(val_root_dir, dataset_folder_name)
+        test_label_dir = os.path.join(test_root_dir, dataset_folder_name)
+        
+
+        train_videos = []
+        val_videos = []
+        test_videos = []
+        # Get all videos from each split
+        if os.path.exists(train_label_dir):
+            train_videos = [(f, train_label_dir) for f in os.listdir(train_label_dir) 
+                        if os.path.isfile(os.path.join(train_label_dir, f))]
+        if os.path.exists(val_label_dir):
+            val_videos = [(f, val_label_dir) for f in os.listdir(val_label_dir) 
+                         if os.path.isfile(os.path.join(val_label_dir, f))]
+        if os.path.exists(test_label_dir):
+            test_videos = [(f, test_label_dir) for f in os.listdir(test_label_dir) 
+                          if os.path.isfile(os.path.join(test_label_dir, f))]
+        
+        # Adjust train count if needed (only move from train to test, never the opposite)
+        if len(train_videos) > desired_train_count:
+            np.random.shuffle(train_videos)
+            videos_to_move = train_videos[desired_train_count:]
+            train_videos = train_videos[:desired_train_count]
+            test_videos.extend(videos_to_move)
+        
+        # Copy videos to outdir
+        for video, src_dir in train_videos:
+            shutil.copy(os.path.join(src_dir, video), os.path.join(outdir, "train", label, video))
+        for video, src_dir in val_videos:
+            shutil.copy(os.path.join(src_dir, video), os.path.join(outdir, "val", label, video))
+        for video, src_dir in test_videos:
+            shutil.copy(os.path.join(src_dir, video), os.path.join(outdir, "val", label, video))
 
 if __name__ == "__main__":
     main(**parse_args().__dict__)
