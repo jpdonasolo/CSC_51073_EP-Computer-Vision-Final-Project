@@ -12,6 +12,8 @@ finetuning/
     └── ...
 ```
 
+Videos names are normalized using unique IDs within each label.
+
 Usage:
 ```
 uv run create_finetuning_folders.py [--kaggle-dir <path/to/kaggle/dir> --local-datasets-dir <path/to/local/datasets/dir> --outdir <path/to/out/dir> --train-size train_size --clear-outdir]
@@ -92,6 +94,48 @@ def split_videos(dataset_folder_path: str, train_size: float):
 
     return train_videos, val_videos
 
+
+class VideoCopier:
+    """Tracks video counts per label (across all splits), and copies videos with unique names."""
+    
+    def __init__(self):
+        # Dictionary to track counts per label: {label: count}
+        # Videos with the same label share a unique sequence regardless of split
+        self.counters = {}
+    
+    def copy_video_with_unique_name(
+        self,
+        src_path: str,
+        label: str,
+        split: str,
+        outdir: Path,
+    ) -> str:
+        """
+        Copy a video with a unique name based on label.
+        """
+        # Initialize counter for this label if needed
+        if label not in self.counters:
+            self.counters[label] = 0
+        
+        # Increment counter and generate unique filename
+        self.counters[label] += 1
+        video_id = self.counters[label]
+        
+        # Get original file extension
+        original_filename = os.path.basename(src_path)
+        _, ext = os.path.splitext(original_filename)
+        
+        # Generate new filename: label_video_id.ext
+        new_filename = f"{label}_{video_id}{ext}"
+        
+        # Destination path
+        dst_path = os.path.join(outdir, split, label, new_filename)
+        
+        # Copy the file
+        shutil.copy(src_path, dst_path)
+        
+        return new_filename
+
 def main(
     kaggle_dir: str,
     local_datasets_dir: str,
@@ -111,6 +155,8 @@ def main(
 
     create_output_dirs(outdir)
 
+    # Initialize video copier to track unique video IDs
+    video_copier = VideoCopier()
 
     workoutfitness_dir = os.path.join(kaggle_dir, "hasyimabdillah/workoutfitness-video/versions/5")
     assert os.path.exists(workoutfitness_dir)
@@ -132,11 +178,13 @@ def main(
         # Split videos in train and val
         train_videos, val_videos = split_videos(dataset_folder_path, train_size)
 
-        # Copy train and val videos to outdir
+        # Copy train and val videos to outdir with unique names
         for video in train_videos:
-            shutil.copy(os.path.join(dataset_folder_path, video), os.path.join(outdir, "train", label, video))
+            src_path = os.path.join(dataset_folder_path, video)
+            video_copier.copy_video_with_unique_name(src_path, label, "train", outdir)
         for video in val_videos:
-            shutil.copy(os.path.join(dataset_folder_path, video), os.path.join(outdir, "val", label, video))
+            src_path = os.path.join(dataset_folder_path, video)
+            video_copier.copy_video_with_unique_name(src_path, label, "val", outdir)
 
     
     dataset_bao2_dir = os.path.join(kaggle_dir, "bluebirdss/dataset-bao2/versions/1/data_mae")
@@ -196,13 +244,16 @@ def main(
             train_videos = train_videos[:desired_train_count]
             test_videos.extend(videos_to_move)
         
-        # Copy videos to outdir
+        # Copy videos to outdir with unique names
         for video, src_dir in train_videos:
-            shutil.copy(os.path.join(src_dir, video), os.path.join(outdir, "train", label, video))
+            src_path = os.path.join(src_dir, video)
+            video_copier.copy_video_with_unique_name(src_path, label, "train", outdir)
         for video, src_dir in val_videos:
-            shutil.copy(os.path.join(src_dir, video), os.path.join(outdir, "val", label, video))
+            src_path = os.path.join(src_dir, video)
+            video_copier.copy_video_with_unique_name(src_path, label, "val", outdir)
         for video, src_dir in test_videos:
-            shutil.copy(os.path.join(src_dir, video), os.path.join(outdir, "val", label, video))
+            src_path = os.path.join(src_dir, video)
+            video_copier.copy_video_with_unique_name(src_path, label, "val", outdir)
 
 if __name__ == "__main__":
     main(**parse_args().__dict__)
