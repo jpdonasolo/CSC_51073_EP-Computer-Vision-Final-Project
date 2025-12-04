@@ -6,6 +6,8 @@ and extracted into a `datasets` folder in the root directory.
 Usage:
 ```
 uv run download_datasets.py [--abs-path-outdir <path/to/out/dir> --force-download --datasets <dataset1,dataset2,...>]
+
+By default, only downloads workoutfitness-video and dataset-bao2.
 ```
 """
 
@@ -31,7 +33,7 @@ def parse_args():
     parser.add_argument(
         "--datasets", 
         type=str, 
-        default="workoutfitness-video", 
+        default="workoutfitness-video,dataset-bao2", 
         help="Comma-separated list of datasets to download. Options: [workoutfitness-video,pushup,UCF101]")
     args = parser.parse_args()
     args.datasets = args.datasets.split(",")
@@ -52,6 +54,11 @@ def main(
         # https://www.kaggle.com/datasets/hasyimabdillah/workoutfitness-video
         print("Downloading dataset: hasyimabdillah/workoutfitness-video")
         path = kagglehub.dataset_download("hasyimabdillah/workoutfitness-video")
+
+    if "dataset-bao2" in datasets:
+        # https://www.kaggle.com/datasets/bluebirdss/dataset-bao2
+        print("Downloading dataset: bluebirdss/dataset-bao2")
+        path = kagglehub.dataset_download("bluebirdss/dataset-bao2")
 
 
     if "pushup" in datasets:
