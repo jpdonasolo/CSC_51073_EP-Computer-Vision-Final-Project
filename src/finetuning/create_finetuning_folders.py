@@ -27,16 +27,18 @@ import numpy as np
 
 
 RANDOM_SEED = 1
-HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
+
+LABELS = ["push-up", "pull-up", "plank", "squat", "russian-twist"]
 
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     default_kaggle_dir = os.path.expanduser("~/.cache/kagglehub/datasets/")
-    default_local_datasets_dir = os.path.join(HERE, "../datasets")
-    default_outdir = os.path.join(HERE, "../finetuning")
+    default_local_datasets_dir = os.path.join(ROOT_DIR, "datasets")
+    default_outdir = os.path.join(ROOT_DIR, "finetuning")
     
     parser.add_argument("--kaggle-dir", type=str, default=default_kaggle_dir)
     parser.add_argument("--local-datasets-dir", type=str, default=default_local_datasets_dir)
@@ -54,7 +56,7 @@ def parse_args():
 
 def create_output_dirs(
     outdir: str,
-    labels: list[str] = ["push-up", "pull-up", "plank", "squat"]
+    labels: list[str] = LABELS
 ):
     """Create directory for the finetuning dataset and subdirectories for each label.
     """
@@ -119,7 +121,9 @@ def main(
         "pull-up": "pull Up",
         "plank": "plank",
         "squat": "squat",
+        "russian-twist": "russian twist",
     }
+    assert set(label_to_dir.keys()) == set(LABELS)
     
     for label, dataset_folder_name in label_to_dir.items():
         
