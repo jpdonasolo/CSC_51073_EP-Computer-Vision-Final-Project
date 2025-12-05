@@ -25,7 +25,7 @@ Evaluate fine-tuned Timesformer on your finetuning dataset.
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-ROOT = PROJECT_ROOT / "finetuning" / "train"   # or "train"
+ROOT = PROJECT_ROOT / "finetuning" / "val"   # or "train"
 
 MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
 CKPT_PATH = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
@@ -120,6 +120,13 @@ def main():
             stats[category]["total"] += 1
             if pred_label == category:
                 stats[category]["correct"] += 1
+            else:
+                pred_conf = probs[top_idx].item()
+                short_path = Path(*video_path.parts[-3:])
+                print(
+                    f"[miss] {short_path} | Pred: {pred_label} ({pred_conf:.3f})"
+                    )
+                
 
     # Print summary
     total_correct = 0
