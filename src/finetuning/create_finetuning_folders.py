@@ -106,27 +106,20 @@ class VideoCopier:
     def copy_video_with_unique_name(
         self,
         src_path: str,
+        dataset_name: str,
         label: str,
         split: str,
         outdir: Path,
     ) -> str:
         """
-        Copy a video with a unique name based on label.
+        Copy a video with a unique name based on dataset and original filename.
         """
-        # Initialize counter for this label if needed
-        if label not in self.counters:
-            self.counters[label] = 0
-        
-        # Increment counter and generate unique filename
-        self.counters[label] += 1
-        video_id = self.counters[label]
-        
         # Get original file extension
         original_filename = os.path.basename(src_path)
         _, ext = os.path.splitext(original_filename)
         
         # Generate new filename: label_video_id.ext
-        new_filename = f"{label}_{video_id}{ext}"
+        new_filename = f"{dataset_name}_{original_filename}"
         
         # Destination path
         dst_path = os.path.join(outdir, split, label, new_filename)
@@ -179,12 +172,13 @@ def main(
         train_videos, val_videos = split_videos(dataset_folder_path, train_size)
 
         # Copy train and val videos to outdir with unique names
+        dataset_name = "workoutfitness-video"
         for video in train_videos:
             src_path = os.path.join(dataset_folder_path, video)
-            video_copier.copy_video_with_unique_name(src_path, label, "train", outdir)
+            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "train", outdir)
         for video in val_videos:
             src_path = os.path.join(dataset_folder_path, video)
-            video_copier.copy_video_with_unique_name(src_path, label, "val", outdir)
+            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "val", outdir)
 
     
     dataset_bao2_dir = os.path.join(kaggle_dir, "bluebirdss/dataset-bao2/versions/1/data_mae")
@@ -245,15 +239,16 @@ def main(
             test_videos.extend(videos_to_move)
         
         # Copy videos to outdir with unique names
+        dataset_name = "dataset-bao2"
         for video, src_dir in train_videos:
             src_path = os.path.join(src_dir, video)
-            video_copier.copy_video_with_unique_name(src_path, label, "train", outdir)
+            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "train", outdir)
         for video, src_dir in val_videos:
             src_path = os.path.join(src_dir, video)
-            video_copier.copy_video_with_unique_name(src_path, label, "val", outdir)
+            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "val", outdir)
         for video, src_dir in test_videos:
             src_path = os.path.join(src_dir, video)
-            video_copier.copy_video_with_unique_name(src_path, label, "val", outdir)
+            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "val", outdir)
 
 if __name__ == "__main__":
     main(**parse_args().__dict__)
