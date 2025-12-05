@@ -12,6 +12,7 @@ import constants as c
 from recorder import Recorder
 from base.utils import load_model
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -155,21 +156,42 @@ class WorkoutModel(WorkoutBaseModel):
             self, 
             model_flag,
             labels, 
-            device="cuda", 
+            device=None,  #default: None (for local)
             timeout=c.INFERENCE_TIMEOUT,
             num_frames=c.NUM_FRAMES,
             *args,
             **kwargs
         ):
         super().__init__(*args, **kwargs)
+        
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+        elif isinstance(device, str) and device.startswith("cuda") and not torch.cuda.is_available():
+            # if cuda not available -> automatically use cpu
+            logger.warning("CUDA requested but not available. Falling back to CPU.")
+            device = "cpu"
 
+        self.device = device
         self.labels = labels
         self.timeout = timeout
         self.device = device
         self.num_frames = num_frames
-        self.processor, self.model, self.classes = load_model(model_flag, device=device)
+        
+        ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
+        if not ckpt_path.exists():
+            logger.warning(f"Checkpoint not found at {ckpt_path}. Falling back to pretrained model.")
+            ckpt_path = None
+            
+        self.processor, self.model, self.classes = load_model(
+            model_flag,
+            checkpoint_path=ckpt_path,
+            device=self.device,
+        )
 
-        self.model.to(device)
+        self.model.to(self.device)
         self.model.eval()
 
     def _predict_thread(self, frames, prediction_result_queue):
