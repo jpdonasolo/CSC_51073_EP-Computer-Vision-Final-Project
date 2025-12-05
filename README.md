@@ -27,6 +27,8 @@ Before running the code, your root folder should look like this:
 ├── finetuning
 │   ├── train
 │   └── val
+├── checkpoints
+│   └── timesformer_best.pt
 ├── README.md
 └── uv.lock
 ```
