@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import sys
 from pathlib import Path
 from typing import List, Tuple
 
@@ -12,13 +13,16 @@ import decord
 from decord import VideoReader, cpu
 from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
-from base.utils import VideoFolderDataset, make_collate_fn
-
 import warnings
 warnings.filterwarnings(
     "ignore",
     message="Creating a tensor from a list of numpy.ndarrays is extremely slow*",
 )
+
+SRC_DIR = Path(__file__).resolve().parents[1]  # .../src
+sys.path.append(str(SRC_DIR))
+
+from base.utils import VideoFolderDataset, make_collate_fn
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -105,8 +109,8 @@ def main():
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
 
     # Build datasets
-    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES)
-    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES)
+    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"))
+    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"))
 
     num_classes = len(train_dataset.classes)
     print(f"Classes: {train_dataset.classes}  (num_classes={num_classes})")
@@ -156,7 +160,7 @@ def main():
         print(f"[Val]   loss={val_loss:.4f}  acc={val_acc*100:.2f}%")
 
         # Save best checkpoint
-        if val_acc >= best_val_acc:
+        if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(
                 {

@@ -44,7 +44,7 @@ LABEL_NORMALIZATION = {
 
 # ===== load frames with OpenCV =====
 
-def load_frames_with_cv2(path, num_frames=8):
+def load_frames(path, num_frames=8):
     """
     Load evenly-spaced frames from a video using OpenCV.
     - Returns a list of exactly `num_frames` RGB numpy arrays.
@@ -116,7 +116,7 @@ def main():
         video_paths = glob.glob(os.path.join(ROOT, category, "*"))
 
         for video_path in video_paths:
-            frames = load_frames_with_cv2(video_path, NUM_FRAMES)
+            frames = load_frames(video_path, NUM_FRAMES)
             if frames is None:
                 # Skip unreadable / problematic videos
                 continue

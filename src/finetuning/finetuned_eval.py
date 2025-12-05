@@ -1,12 +1,19 @@
-import torch
 import os
-import glob
+import sys
 from pathlib import Path
-import decord
-from decord import VideoReader, cpu
+import glob
+
+import cv2
+import numpy as np
+import torch
 from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
+# Make sure we can import from src/base
+SRC_DIR = Path(__file__).resolve().parents[1]
+sys.path.append(str(SRC_DIR))
+
 from base.utils import load_finetuned_model
+
 
 """
 Evaluate fine-tuned Timesformer on your finetuning dataset.
@@ -16,24 +23,56 @@ Evaluate fine-tuned Timesformer on your finetuning dataset.
 - Computes per-class accuracy + overall accuracy
 """
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = Path(SCRIPT_DIR).resolve().parent
-ROOT = PROJECT_ROOT / "finetuning" / "val"   # "train" or "val"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+ROOT = PROJECT_ROOT / "finetuning" / "train"   # or "train"
+
 MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
 CKPT_PATH = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
 NUM_FRAMES = 8
 
 
-def load_frames(path, num_frames=8):
-    """Load evenly-spaced frames from a video using decord."""
-    vr = VideoReader(str(path), ctx=cpu(0))
-    total = len(vr)
-    if total == 0:
-        raise RuntimeError(f"No frames found in video: {path}")
-    indices = torch.linspace(0, total - 1, steps=min(num_frames, total)).long()
-    frames = [vr[int(i)].asnumpy() for i in indices]
-    return frames
+def load_frames(path: Path, num_frames: int = 8):
+    """
+    Load evenly-spaced frames from a video using OpenCV.
+    - Returns a list of exactly `num_frames` RGB frames.
+    - If something goes wrong, returns None and the caller can skip this video.
+    """
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        print(f"[WARN] Could not open video: {path}")
+        return None
 
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if frame_count <= 0:
+        print(f"[WARN] No frames in video: {path}")
+        cap.release()
+        return None
+
+    indices = np.linspace(0, frame_count - 1, num_frames, dtype=int)
+
+    frames = []
+    for idx in indices:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
+        ret, frame = cap.read()
+        if not ret:
+            print(f"[WARN] Failed to read frame {idx} from {path}")
+            cap.release()
+            return None
+
+        # BGR -> RGB
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frames.append(frame)
+
+    cap.release()
+
+    if len(frames) < num_frames:
+        print(
+            f"[WARN] Only got {len(frames)} frames (need {num_frames}) from {path}, skipping"
+        )
+        return None
+
+    return frames
 
 
 def main():
@@ -43,33 +82,40 @@ def main():
 
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
     model, classes = load_finetuned_model(MODEL_NAME, CKPT_PATH, device)
+    model.to(device)
 
-    # List categories from folder structure (same names as classes)
-    categories = sorted(
-        d.name for d in ROOT.iterdir() if d.is_dir()
-    )
+    print(f"Checkpoint classes: {classes}")
+
+    # List categories (folder names under ROOT)
+    categories = sorted(d.name for d in ROOT.iterdir() if d.is_dir())
     print(f"Folders (categories): {categories}")
 
     # Stats container for each category
     stats = {cat: {"correct": 0, "total": 0} for cat in categories}
 
-    # Iterate through each category and video
+    # Iterate through each category and its .mp4 videos
     for category in categories:
-        video_paths = glob.glob(str(ROOT / category / "*"))
+        cat_dir = ROOT / category
+        # only use .mp4 files (avoid .mov, .avi, etc.)
+        video_paths = list(cat_dir.glob("*.mp4")) + list(cat_dir.glob("*.MP4"))
 
         for video_path in video_paths:
             frames = load_frames(video_path, NUM_FRAMES)
+            if frames is None:
+                # unreadable / broken video -> skip
+                continue
 
-            inputs = processor([frames], return_tensors="pt")
-            pixel_values = inputs["pixel_values"].to(device)
+            # processor expects a list of frames (list of HxWxC)
+            inputs = processor(frames, return_tensors="pt")
+            inputs = {k: v.to(device) for k, v in inputs.items()}
 
             with torch.no_grad():
-                outputs = model(pixel_values=pixel_values)
+                outputs = model(**inputs)
                 logits = outputs.logits
                 probs = logits.softmax(dim=-1)[0]
 
             top_idx = probs.argmax().item()
-            pred_label = model.config.id2label[top_idx]  # this now matches ckpt['classes']
+            pred_label = model.config.id2label[top_idx]  # should match ckpt['classes']
 
             stats[category]["total"] += 1
             if pred_label == category:
@@ -79,15 +125,15 @@ def main():
     total_correct = 0
     total_total = 0
 
-    print("\n=== Fine-tuned model performance (per class) ===")
+    print("\n=== Fine-tuned accuracy ===")
     for cat, s in stats.items():
         acc = (s["correct"] / s["total"] * 100) if s["total"] else 0.0
         total_correct += s["correct"]
         total_total += s["total"]
-        print(f"{cat:7s} : {acc:6.2f}%  ({s['correct']}/{s['total']})")
+        print(f"{cat:15s} : {acc:6.2f}%  ({s['correct']}/{s['total']})")
 
     overall_acc = (total_correct / total_total * 100) if total_total else 0.0
-    print(f"Overall : {overall_acc:6.2f}%  ({total_correct}/{total_total})")
+    print(f"\nOverall : {overall_acc:6.2f}%  ({total_correct}/{total_total})")
 
 
 if __name__ == "__main__":

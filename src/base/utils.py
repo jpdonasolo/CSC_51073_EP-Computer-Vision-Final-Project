@@ -34,41 +34,55 @@ class VideoFolderDataset(Dataset):
     Each subfolder name is treated as a class label.
     """
 
-    def __init__(self, root: Path, num_frames: int = 8):
+    def __init__(self, root: Path, num_frames: int = 8, exts=(".mp4", ".MP4")):
+        """
+        root_dir: directory that contains class subfolders (e.g. train/plank, train/squat, ...)
+        num_frames: how many frames to sample per video
+        exts: tuple of allowed video file extensions
+        """
         self.root = Path(root)
         self.num_frames = num_frames
+        self.exts = set(exts)
+
+        self.root = Path(root)
+        self.num_frames = num_frames
+        # normalize extensions to lowercase, e.g. ".MP4" -> ".mp4"
+        self.exts = {ext.lower() for ext in exts}
 
         # class names = subfolder names, sorted for stable label mapping
         self.classes: List[str] = sorted(
             [d.name for d in self.root.iterdir() if d.is_dir()]
         )
-        self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
+        self.class_to_idx = {
+            cls_name: idx for idx, cls_name in enumerate(self.classes)
+        }
 
-        # collect all (video_path, label_idx)
+        # collect all (video_path, label_idx) for allowed extensions only
         self.samples: List[Tuple[Path, int]] = []
         for cls_name in self.classes:
             cls_dir = self.root / cls_name
             for p in cls_dir.iterdir():
-                if p.is_file() and p.suffix.lower() in {".mp4", ".avi", ".mov", ".mkv"}:
+                if p.is_file() and p.suffix.lower() in self.exts:
                     self.samples.append((p, self.class_to_idx[cls_name]))
 
         print(f"[Dataset] root={self.root}  classes={self.classes}")
-        print(f"[Dataset] Found {len(self.samples)} videos")
+        print(f"[Dataset] Found {len(self.samples)} videos (exts={self.exts})")
 
     def __len__(self) -> int:
         return len(self.samples)
 
     def _load_frames(self, path: Path) -> List:
         """Load evenly spaced frames from a video using decord."""
-        # decord needs to be imported here to avoid OpenCV GUI conflicts
         from decord import VideoReader, cpu
-
 
         vr = VideoReader(str(path), ctx=cpu(0))
         total = len(vr)
         if total == 0:
             raise RuntimeError(f"No frames found in video: {path}")
-        indices = torch.linspace(0, total - 1, steps=min(self.num_frames, total)).long()
+
+        indices = torch.linspace(
+            0, total - 1, steps=min(self.num_frames, total)
+        ).long()
         frames = [vr[int(i)].asnumpy() for i in indices]
         return frames
 
