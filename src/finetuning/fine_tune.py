@@ -21,9 +21,9 @@ warnings.filterwarnings(
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TRAIN_ROOT = PROJECT_ROOT / "finetuning" / "train"
-VAL_ROOT = PROJECT_ROOT / "finetuning" / "val"
+VAL_ROOT   = PROJECT_ROOT / "finetuning" / "val"
 
 MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
 BATCH_SIZE = 4
