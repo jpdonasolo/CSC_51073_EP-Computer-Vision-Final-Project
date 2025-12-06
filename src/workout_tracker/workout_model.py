@@ -115,7 +115,7 @@ class WorkoutBaseModel:
     def get_last_prediction(self) -> str:
         return self._last_prediction_label
     
-class WorkoutModel(WorkoutBaseModel):
+class WorkoutDummyModel(WorkoutBaseModel):
     """
     Dummy model used for testing.
 
