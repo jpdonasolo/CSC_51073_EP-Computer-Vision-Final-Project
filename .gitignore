@@ -9,3 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+# Folders with videos or model checkpoints
+checkpoints/
+finetuning/
+rar/
+src/benchmark/manual_inspection_videos/
