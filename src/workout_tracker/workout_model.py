@@ -155,7 +155,6 @@ class WorkoutModel(WorkoutBaseModel):
     def __init__(
             self, 
             model_flag,
-            labels, 
             device=None,  #default: None (for local)
             timeout=c.INFERENCE_TIMEOUT,
             num_frames=c.NUM_FRAMES,
@@ -175,7 +174,6 @@ class WorkoutModel(WorkoutBaseModel):
             device = "cpu"
 
         self.device = device
-        self.labels = labels
         self.timeout = timeout
         self.device = device
         self.num_frames = num_frames
@@ -209,6 +207,7 @@ class WorkoutModel(WorkoutBaseModel):
             
             label_id = self.model.config.label2id.get(label, None)
             if label_id is None:
+                label = c.TIMESFORMER_LABEL_NORMALIZATION.get(label, "pause")
                 tracked_probs[label] = 0
                 continue
             
