@@ -13,6 +13,11 @@ TIMESFORMER_LABEL_NORMALIZATION = {
     "plank": "plank"
 }
 
+INVERSE_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in TIMESFORMER_LABEL_NORMALIZATION.items()}
+
+# Minimum probability for a prediction to be made
+CONFIDENCE_THRESHOLD = 0.8
+
 # Timeout for the inference thread
 INFERENCE_TIMEOUT = .5
 

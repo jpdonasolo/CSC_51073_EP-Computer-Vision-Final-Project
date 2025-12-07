@@ -38,6 +38,7 @@ class WorkoutBaseModel:
 
         self._last_prediction_timestamp = 0
         self._last_prediction_label = None
+        self._last_prediction_prob = None
         self._prediction_lock = threading.Lock()
         # Lock to protect the c.LABEL_TO_COUNT dictionary
         self._label_count_lock = threading.Lock()
@@ -75,14 +76,20 @@ class WorkoutBaseModel:
             logger.error(f"Thread timed out")
             return
     
-        (prediction_label, probs) = prediction_result_queue.get()
-
+        probs = prediction_result_queue.get()
+        prediction_label = max(probs, key=probs.get)
+        prediction_prob = probs[prediction_label]
+        
+        if prediction_prob < c.CONFIDENCE_THRESHOLD:
+            prediction_label = "pause"
+            prediction_prob = 1 - max(probs.values())
+        
         prediction_start_str = time.strftime('%H:%M:%S.%s', time.localtime())
         probs["timestamp"] = prediction_start_str
         self._recorder.record(probs)
-
+        
         self.increment_label_count(prediction_label)
-        updated = self.update_last_prediction(prediction_start, prediction_label)
+        updated = self.update_last_prediction(prediction_start, prediction_label, prediction_prob)
         
         if not updated:
             logger.warning(f"Thread was too slow and failed to update last prediction")
@@ -99,7 +106,7 @@ class WorkoutBaseModel:
         with self._label_count_lock:
             c.LABEL_TO_COUNT[label] += c.PREDICTION_INTERVAL
         
-    def update_last_prediction(self, starting_time: float, label: str):
+    def update_last_prediction(self, starting_time: float, label: str, prob: float):
         """
         Thread safe update of the last prediction.
         """
@@ -110,42 +117,11 @@ class WorkoutBaseModel:
             
             self._last_prediction_timestamp = starting_time
             self._last_prediction_label = label
+            self._last_prediction_prob = prob
             return True
         
     def get_last_prediction(self) -> str:
-        return self._last_prediction_label
-    
-class WorkoutDummyModel(WorkoutBaseModel):
-    """
-    Dummy model used for testing.
-
-    In the future, replace this with your fine-tuned model class.
-    Implement a similar interface:
-
-        model = YourRealModel(...)
-        label = model.predict(frames)
-
-    where `frames` is a list of numpy arrays (H, W, 3).
-    """
-
-    def __init__(self, labels, timeout=c.INFERENCE_TIMEOUT, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.labels = labels
-        self.timeout = timeout
-
-    def _predict_thread(self, frames, prediction_result_queue):
-        # For now, sleeps to simulate inference time, then returns a random label.  
-        inference_time = random.uniform(0, 1)
-        print(f"Inference time: {inference_time:.2f} seconds")
-        time.sleep(inference_time)
-
-        if not frames:
-            self.increment_label_count("pause")
-            return
-
-        predicted_label = random.choice(self.labels)
-        prediction_result_queue.put((predicted_label, {label: 1/len(self.labels) for label in self.labels}))
-
+        return self._last_prediction_label, self._last_prediction_prob
 
 class WorkoutModel(WorkoutBaseModel):
     """
@@ -195,28 +171,30 @@ class WorkoutModel(WorkoutBaseModel):
 
         with torch.no_grad():
             logits = self.model(pixel_values=pixel_values).logits / self.temperature
-            probs = logits.softmax(dim=-1)[0]
-            top_idx = probs.argmax().item()
+        
 
         tracked_probs = {}
-        for label in sorted(c.TIMESFORMER_LABEL_NORMALIZATION.keys()):
-            
-            label_id = self.model.config.label2id.get(label, None)
-            if label_id is None:
-                label = c.TIMESFORMER_LABEL_NORMALIZATION.get(label, "pause")
-                tracked_probs[label] = 0
+        for label in c.LABEL_TO_COUNT.keys():
+            if label == "pause":
                 continue
-            
-            prob = probs[label_id].item()
 
-            label = c.TIMESFORMER_LABEL_NORMALIZATION.get(label, "pause")
-            tracked_probs[label] = prob
-        
-        # Add the probability of the pause
-        tracked_probs["pause"] = (probs.sum().item()) - sum(tracked_probs.values())
+            model_label = c.TIMESFORMER_LABEL_NORMALIZATION.get(label)
+            label_id = self.model.config.label2id.get(model_label, None)
 
+            if label_id is not None:
+                tracked_probs[label] = logits[0, label_id].item()
+
+            else:
+                tracked_probs[label] = 0
+
+
+        # Get items and sort alphabetically by label
+        tracked_items = sorted(tracked_probs.items(), key=lambda x: x[0])
         
-        pred_label = self.model.config.id2label[top_idx]
-        predicted_label = c.TIMESFORMER_LABEL_NORMALIZATION.get(pred_label, "pause")
-        
-        prediction_result_queue.put((predicted_label, tracked_probs))
+        labels = [label for label, _ in tracked_items]
+        probs = [prob for _, prob in tracked_items]
+
+        softmax_probs = torch.softmax(torch.tensor(probs), dim=-1)
+        probs = {label: softmax_probs[idx].item() for idx, label in enumerate(labels)}
+
+        prediction_result_queue.put(probs)

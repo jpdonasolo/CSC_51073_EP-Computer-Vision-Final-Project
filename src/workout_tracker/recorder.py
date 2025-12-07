@@ -40,6 +40,7 @@ class Recorder:
             return
 
         timestamp = info.pop("timestamp")
+        info["pause"] = None
         
         # Make sure numbers will be in the correct order
         if not sorted(info.keys()) == sorted(c.LABEL_TO_COUNT.keys()):

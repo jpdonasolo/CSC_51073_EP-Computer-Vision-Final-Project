@@ -40,7 +40,7 @@ def main(output: str = None):
     fps = 30
     
     # Smooth FPS over time
-    alpha = 0.95
+    alpha = 0.98
 
     # Initialize dummy model
     model = WorkoutModel(
@@ -49,10 +49,12 @@ def main(output: str = None):
     )
 
     # Current label and inference timing
-    current_label = "initializing model..."
     last_infer_time = time.time()
     warmup_time = time.time()
     last_frame_cap = 0
+
+    current_label = "initializing model..."
+    current_prob = 0
 
     try:
         while True:
@@ -80,13 +82,13 @@ def main(output: str = None):
                 model.predict(frames_for_model)
             # ===== Rendering overlay text =====
 
-            if (last_prediction:=model.get_last_prediction()) is not None:
-                current_label = last_prediction
+            if (last_prediction:=model.get_last_prediction()) != (None, None):
+                current_label, current_prob = last_prediction
 
             # Show current label at the top
             cv2.putText(
                 frame,
-                f"Current: {current_label}",
+                f"Current: {current_label} ({current_prob:.2%})",
                 (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.9,
