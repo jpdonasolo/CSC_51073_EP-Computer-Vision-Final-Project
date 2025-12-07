@@ -14,7 +14,15 @@ import workout_tracker.constants as c
 
 
 
-VIDEO_ID = 1
+VIDEO_ID = 6
+VIDEO_TO_FPS = {
+    1: 29.72,
+    2: 29.94,
+    3: 29.98,
+    4: 29.88,
+    5: 29.95,
+    6: 18.56,
+}
 
 
 def main():
@@ -45,11 +53,11 @@ def main():
     print(f"First frame shape: {frames[0].shape}")  # (H, W, 3)
 
 
-    my_camera_framerate = 18.56
-    normalized_buffer_size = int(c.BUFFER_SIZE / 30 * my_camera_framerate)
+    camera_framerate = VIDEO_TO_FPS[VIDEO_ID]
+    normalized_buffer_size = int(c.BUFFER_SIZE / 30 * camera_framerate)
     
     last_infer_time = time.time()
-    cur_frame = c.WARMUP_TIME * my_camera_framerate
+    cur_frame = c.WARMUP_TIME * camera_framerate
 
 
     while True:
@@ -57,9 +65,9 @@ def main():
         
         if current_time - last_infer_time >= c.PREDICTION_INTERVAL:
             elapsed_time = current_time - last_infer_time
-            elapsed_frames = elapsed_time * my_camera_framerate
+            elapsed_frames = elapsed_time * camera_framerate
             cur_frame = cur_frame + elapsed_frames
-            print(f"Starting inference at {cur_frame / my_camera_framerate:.2f} seconds")
+            print(f"Starting inference at {cur_frame / camera_framerate:.2f} seconds")
             
             if cur_frame >= len(frames):
                 break
