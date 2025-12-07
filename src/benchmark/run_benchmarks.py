@@ -34,8 +34,8 @@ from base.utils import (
     VideoFolderDataset, 
     make_collate_fn, 
     load_model, 
-    calculate_dataset_statistics,
 )
+from benchmark.utils import calculate_dataset_statistics
 
 
 

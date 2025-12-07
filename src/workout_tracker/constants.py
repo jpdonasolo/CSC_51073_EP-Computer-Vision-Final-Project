@@ -24,7 +24,7 @@ NUM_FRAMES = 8
 BUFFER_SIZE = 60
 
 # Time interval between predictions (seconds)
-PREDICTION_INTERVAL = 0.1
+PREDICTION_INTERVAL = 0.2
 
 # Time before first prediction (seconds)
 WARMUP_TIME = 2.0

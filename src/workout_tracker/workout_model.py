@@ -88,7 +88,7 @@ class WorkoutBaseModel:
             logger.warning(f"Thread was too slow andfailed to update last prediction")
             return
         
-        logger.info(f"Predicted label: {prediction_label}")
+        logger.debug(f"Predicted label: {prediction_label}")
         
         return prediction_label
     
@@ -115,7 +115,7 @@ class WorkoutBaseModel:
     def get_last_prediction(self) -> str:
         return self._last_prediction_label
     
-class WorkoutModel(WorkoutBaseModel):
+class WorkoutDummyModel(WorkoutBaseModel):
     """
     Dummy model used for testing.
 
@@ -155,8 +155,8 @@ class WorkoutModel(WorkoutBaseModel):
     def __init__(
             self, 
             model_flag,
-            labels, 
             device=None,  #default: None (for local)
+            ckpt_path=None,
             timeout=c.INFERENCE_TIMEOUT,
             num_frames=c.NUM_FRAMES,
             *args,
@@ -175,15 +175,9 @@ class WorkoutModel(WorkoutBaseModel):
             device = "cpu"
 
         self.device = device
-        self.labels = labels
         self.timeout = timeout
         self.device = device
         self.num_frames = num_frames
-        
-        ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
-        if not ckpt_path.exists():
-            logger.warning(f"Checkpoint not found at {ckpt_path}. Falling back to pretrained model.")
-            ckpt_path = None
             
         self.processor, self.model, self.classes = load_model(
             model_flag,
@@ -209,6 +203,7 @@ class WorkoutModel(WorkoutBaseModel):
             
             label_id = self.model.config.label2id.get(label, None)
             if label_id is None:
+                label = c.TIMESFORMER_LABEL_NORMALIZATION.get(label, "pause")
                 tracked_probs[label] = 0
                 continue
             

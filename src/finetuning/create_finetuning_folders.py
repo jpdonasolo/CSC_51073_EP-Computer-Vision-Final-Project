@@ -35,6 +35,9 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 LABELS = ["push-up", "pull-up", "plank", "squat", "russian-twist"]
 DEFAULT_LABEL_TO_DIR = {x: x for x in LABELS}
 
+# Failed to load this videos. They will be skipped.
+IGNORED_VIDEOS = {("dataset-bao2", "plank_206.mp4")}
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -194,7 +197,8 @@ def main(
 
     # Hardcoded train/val/test counts for dataset-bao2
     bao2_counts = {
-        "plank": (16, 5, 1),
+        # -1 in plank because of IGNORED_VIDEOS
+        "plank": (16 - 1, 5, 1),
         "push-up": (44, 13, 2),
         "pull-up": (12, 5, 0),
         "squat": (40, 12, 1),
@@ -223,13 +227,16 @@ def main(
         # Get all videos from each split
         if os.path.exists(train_label_dir):
             train_videos = [(f, train_label_dir) for f in os.listdir(train_label_dir) 
-                        if os.path.isfile(os.path.join(train_label_dir, f))]
+                        if os.path.isfile(os.path.join(train_label_dir, f))
+                        and (dataset_name, f) not in IGNORED_VIDEOS]
         if os.path.exists(val_label_dir):
             val_videos = [(f, val_label_dir) for f in os.listdir(val_label_dir) 
-                         if os.path.isfile(os.path.join(val_label_dir, f))]
+                         if os.path.isfile(os.path.join(val_label_dir, f))
+                         and (dataset_name, f) not in IGNORED_VIDEOS]
         if os.path.exists(test_label_dir):
             test_videos = [(f, test_label_dir) for f in os.listdir(test_label_dir) 
-                          if os.path.isfile(os.path.join(test_label_dir, f))]
+                          if os.path.isfile(os.path.join(test_label_dir, f))
+                          and (dataset_name, f) not in IGNORED_VIDEOS]
         
         # Adjust train count if needed (only move from train to test, never the opposite)
         if len(train_videos) > desired_train_count:

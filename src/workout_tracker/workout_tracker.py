@@ -39,7 +39,6 @@ def main(output: str = None):
     # Initialize dummy model
     model = WorkoutModel(
         "timesformer", 
-        list(c.LABEL_TO_COUNT.keys()), 
         timeout=c.INFERENCE_TIMEOUT, 
         output=output
     )

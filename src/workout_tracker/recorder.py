@@ -40,8 +40,11 @@ class Recorder:
             return
 
         timestamp = info.pop("timestamp")
+        
         # Make sure numbers will be in the correct order
-        assert sorted(info.keys()) == sorted(c.LABEL_TO_COUNT.keys())
+        if not sorted(info.keys()) == sorted(c.LABEL_TO_COUNT.keys()):
+            raise ValueError(f"Keys in info do not match c.LABEL_TO_COUNT.keys(). Keys in info: {sorted(info.keys())}. Keys in c.LABEL_TO_COUNT.keys(): {sorted(c.LABEL_TO_COUNT.keys())}")
+            
         info = [info[k] for k in sorted(info.keys())]
 
         with open(self.output, "a", newline="", encoding="utf-8") as f:
