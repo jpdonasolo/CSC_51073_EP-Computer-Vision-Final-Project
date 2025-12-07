@@ -45,7 +45,8 @@ def main(output: str = None):
     # Initialize dummy model
     model = WorkoutModel(
         "timesformer",
-        output=output
+        output=output,
+        alpha=0.8
     )
 
     # Current label and inference timing

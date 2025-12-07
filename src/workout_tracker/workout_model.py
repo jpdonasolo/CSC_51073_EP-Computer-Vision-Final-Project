@@ -34,15 +34,14 @@ class WorkoutBaseModel:
     Base class for all workout models.
     """
 
-    def __init__(self, output: str = None):
+    def __init__(self, output: str = None, alpha: float = 0.):
 
         self._last_prediction_timestamp = 0
-        self._last_prediction_label = None
-        self._last_prediction_prob = None
+        self._raw_last_prediction_probs = dict()
+        self._smoothed_last_prediction_probs = dict()
         self._prediction_lock = threading.Lock()
-        # Lock to protect the c.LABEL_TO_COUNT dictionary
         self._label_count_lock = threading.Lock()
-
+        self._alpha = alpha
         self._recorder = Recorder(output)
 
 
@@ -84,18 +83,20 @@ class WorkoutBaseModel:
             prediction_label = "pause"
             prediction_prob = 1 - max(probs.values())
         
-        prediction_start_str = time.strftime('%H:%M:%S.%s', time.localtime())
-        probs["timestamp"] = prediction_start_str
-        self._recorder.record(probs)
-        
+
         self.increment_label_count(prediction_label)
-        updated = self.update_last_prediction(prediction_start, prediction_label, prediction_prob)
-        
+        updated = self.update_probs(prediction_start, probs)
+
         if not updated:
             logger.warning(f"Thread was too slow and failed to update last prediction")
             return
-        
+
         logger.debug(f"Predicted label: {prediction_label}")
+
+
+        prediction_start_str = time.strftime('%H:%M:%S.%s', time.localtime())
+        probs["timestamp"] = prediction_start_str
+        self._recorder.record(probs)
         
         return prediction_label
     
@@ -106,7 +107,7 @@ class WorkoutBaseModel:
         with self._label_count_lock:
             c.LABEL_TO_COUNT[label] += c.PREDICTION_INTERVAL
         
-    def update_last_prediction(self, starting_time: float, label: str, prob: float):
+    def update_probs(self, starting_time: float, probs: dict):
         """
         Thread safe update of the last prediction.
         """
@@ -116,12 +117,24 @@ class WorkoutBaseModel:
                 return False
             
             self._last_prediction_timestamp = starting_time
-            self._last_prediction_label = label
-            self._last_prediction_prob = prob
+            self._raw_last_prediction_probs = probs
+
+            default_prob = 1 / len(c.LABEL_TO_COUNT.keys())
+            self._smoothed_last_prediction_probs = {
+                label: self._alpha * self._smoothed_last_prediction_probs.get(label, default_prob) + (1 - self._alpha) * prob \
+                    for label, prob in probs.items()
+            }
             return True
         
-    def get_last_prediction(self) -> str:
-        return self._last_prediction_label, self._last_prediction_prob
+    def get_last_prediction(self) -> tuple[str, float]:
+        probs = self._smoothed_last_prediction_probs
+        if len(probs) == 0:
+            return (None, None)
+        prob = max(probs.values())
+        label = max(probs, key=probs.get)
+        if prob < c.CONFIDENCE_THRESHOLD:
+            return ("pause", 1 - prob)
+        return label, prob
 
 class WorkoutModel(WorkoutBaseModel):
     """
