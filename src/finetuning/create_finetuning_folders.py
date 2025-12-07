@@ -35,9 +35,40 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 LABELS = ["push-up", "pull-up", "plank", "squat", "russian-twist"]
 DEFAULT_LABEL_TO_DIR = {x: x for x in LABELS}
 
-# Failed to load this videos. They will be skipped.
-IGNORED_VIDEOS = {("dataset-bao2", "plank_206.mp4")}
-
+# Bad videos
+IGNORED_VIDEOS = {
+    ("dataset-bao2", "plank_206.mp4"), #train
+    ("dataset-bao2", "squat_7.mp4"), #train
+    ("dataset-bao2", "squat_8.mp4"), #train
+    ("dataset-bao2", "squat_9.mp4"), #train
+    ("dataset-bao2", "squat_20.mp4"), #train
+    ("dataset-bao2", "squat_11.mp4"), #train
+    ("dataset-bao2", "squat_12.mp4"), #train
+    ("dataset-bao2", "squat_13.mp4"), #train
+    ("dataset-bao2", "squat_14.mp4"), #train
+    ("dataset-bao2", "squat_16.mp4"), #train
+    ("dataset-bao2", "squat_102.mp4"), #train
+    ("dataset-bao2", "squat_103.mp4"), #train
+    ("dataset-bao2", "squat_105.mp4"), #train
+    ("dataset-bao2", "squat_106.mp4"), #train
+    ("dataset-bao2", "squat_108.mp4"), #train
+    ("dataset-bao2", "squat_114.mp4"), #train
+    ("dataset-bao2", "squat_115.mp4"), #train
+    ("dataset-bao2", "squat_116.mp4"), #train
+    ("dataset-bao2", "squat_118.mp4"), #train
+    ("dataset-bao2", "squat_121.mp4"), #train
+    ("dataset-bao2", "squat_122.mp4"), #train
+    ("dataset-bao2", "squat_123.mp4"), #train
+    ("dataset-bao2", "squat_25.mp4"), #val
+    ("dataset-bao2", "squat_26.mp4"), #val
+    ("dataset-bao2", "squat_27.mp4"), #val
+    ("dataset-bao2", "squat_28.mp4"), #val
+    ("dataset-bao2", "squat_29.mp4"), #val
+    ("dataset-bao2", "push-up_test_2.mp4"), #test
+    ("dataset-bao2", "push-up_test_1.mp4"), #test
+    ("dataset-bao2", "push-up_20.mp4"), #train
+    ("dataset-bao2", "push-up_21.mp4"), #train
+}
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -201,7 +232,7 @@ def main(
         "plank": (16 - 1, 5, 1),
         "push-up": (44, 13, 2),
         "pull-up": (12, 5, 0),
-        "squat": (40, 12, 1),
+        "squat": (40-21, 12-5, 1),
         "russian-twist": (14, 5, 0),
     }
     assert set(bao2_counts.keys()) == set(label_to_dir.keys())

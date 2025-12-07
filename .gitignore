@@ -11,6 +11,6 @@ wheels/
 
 # Folders with videos or model checkpoints
 checkpoints/
-finetuning/
+./finetuning/
 rar/
 src/benchmark/manual_inspection_videos/
