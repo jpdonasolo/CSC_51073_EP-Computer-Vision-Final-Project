@@ -19,9 +19,8 @@ INFERENCE_TIMEOUT = .5
 # Number of frames to sample from the video
 NUM_FRAMES = 8
 
-# Buffer size for the frame buffer
-# Assume 30fps
-BUFFER_SIZE = 60
+# Buffer size for the frame buffer 
+BUFFER_SIZE_SECONDS = 3
 
 # Time interval between predictions (seconds)
 PREDICTION_INTERVAL = 0.2
