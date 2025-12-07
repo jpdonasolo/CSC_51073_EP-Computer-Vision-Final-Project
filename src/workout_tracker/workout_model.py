@@ -34,14 +34,15 @@ class WorkoutBaseModel:
     Base class for all workout models.
     """
 
-    def __init__(self, output: str = None, alpha: float = 0.):
+    def __init__(self, output: str = None, alpha: float = 0., up_confidence: float = c.UP_CONFIDENCE_THRESHOLD):
 
         self._last_prediction_timestamp = 0
-        self._raw_last_prediction_probs = dict()
-        self._smoothed_last_prediction_probs = dict()
+        self._raw_last_prediction_probs = {"pause": 1.0}
+        self._smoothed_last_prediction_probs = {"pause": 1.0}
         self._prediction_lock = threading.Lock()
         self._label_count_lock = threading.Lock()
         self._alpha = alpha
+        self._up_confidence_threshold = up_confidence
         self._recorder = Recorder(output)
 
 
@@ -79,10 +80,7 @@ class WorkoutBaseModel:
         prediction_label = max(probs, key=probs.get)
         prediction_prob = probs[prediction_label]
         
-        if prediction_prob < c.CONFIDENCE_THRESHOLD:
-            prediction_label = "pause"
-            prediction_prob = 1 - max(probs.values())
-        
+        prediction_label, prediction_prob = self.apply_confidence_threshold(prediction_label, prediction_prob)
 
         self.increment_label_count(prediction_label)
         updated = self.update_probs(prediction_start, probs)
@@ -99,6 +97,22 @@ class WorkoutBaseModel:
         self._recorder.record(probs)
         
         return prediction_label
+    
+    def apply_confidence_threshold(self, prediction_label: str, prediction_prob: float) -> tuple[str, float]:
+        """
+        Applies the confidence thresholds to the prediction. If the prediction is not confident enough,
+        it is set to pause, and probability is set to 1 - prediction_prob.
+        """
+        probs = self._smoothed_last_prediction_probs
+        current_label = max(probs, key=probs.get)
+
+        # Is the model trying to move from pause to a new prediction?
+        # If so, it must surpass UP_CONFIDENCE_THRESHOLD
+        if current_label == "pause" and prediction_prob < self._up_confidence_threshold:
+            prediction_label = "pause"
+            prediction_prob = 1 - prediction_prob
+
+        return prediction_label, prediction_prob
     
     def increment_label_count(self, label):
         """ 
@@ -132,7 +146,7 @@ class WorkoutBaseModel:
             return (None, None)
         prob = max(probs.values())
         label = max(probs, key=probs.get)
-        if prob < c.CONFIDENCE_THRESHOLD:
+        if prob < self._up_confidence_threshold:
             return ("pause", 1 - prob)
         return label, prob
 
