@@ -85,7 +85,7 @@ class WorkoutBaseModel:
         updated = self.update_last_prediction(prediction_start, prediction_label)
         
         if not updated:
-            logger.warning(f"Thread was too slow andfailed to update last prediction")
+            logger.warning(f"Thread was too slow and failed to update last prediction")
             return
         
         logger.debug(f"Predicted label: {prediction_label}")
@@ -140,7 +140,7 @@ class WorkoutDummyModel(WorkoutBaseModel):
         time.sleep(inference_time)
 
         if not frames:
-            c.LABEL_TO_COUNT["pause"] += c.PREDICTION_INTERVAL
+            self.increment_label_count("pause")
             return
 
         predicted_label = random.choice(self.labels)
@@ -177,7 +177,6 @@ class WorkoutModel(WorkoutBaseModel):
 
         self.device = device
         self.timeout = timeout
-        self.device = device
         self.num_frames = num_frames
         self.temperature = temperature
         self.processor, self.model, self.classes = load_model(
