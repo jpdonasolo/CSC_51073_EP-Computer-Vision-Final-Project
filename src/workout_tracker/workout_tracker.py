@@ -32,14 +32,19 @@ def main(output: str = None):
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    # Buffer to store recent frames (last 5 seconds)
-    # Assuming ~30 fps, 5 seconds ≈ 150 frames
-    frame_buffer = deque(maxlen=c.BUFFER_SIZE)
+    # Buffer to store recent frames (last BUFFER_SIZE_SECONDS seconds)
+    # Assume max 60fps for buffer
+    frame_buffer = deque(maxlen=c.BUFFER_SIZE_SECONDS * 60)
+    
+    # Strat FPS at 30fps
+    fps = 30
+    
+    # Smooth FPS over time
+    alpha = 0.95
 
     # Initialize dummy model
     model = WorkoutModel(
-        "timesformer", 
-        timeout=c.INFERENCE_TIMEOUT, 
+        "timesformer",
         output=output
     )
 
@@ -58,7 +63,7 @@ def main(output: str = None):
                 break
 
             now = time.time()
-            fps = 1 / (now - last_frame_cap)
+            fps = alpha * fps + (1 - alpha) * 1 / (now - last_frame_cap)
             last_frame_cap = now
 
             # Store frame in buffer (later used for model inference)
@@ -67,7 +72,9 @@ def main(output: str = None):
             # If enough time has passed, run inference on the recent clip
             if now - warmup_time >= c.WARMUP_TIME and now - last_infer_time >= c.PREDICTION_INTERVAL:
                 last_infer_time = now
-                frames_for_model = list(frame_buffer)
+
+                n_trames = int(c.BUFFER_SIZE_SECONDS * fps)
+                frames_for_model = list(frame_buffer)[-n_trames:]
 
                 # Call dummy model (replace with real model later)
                 model.predict(frames_for_model)
