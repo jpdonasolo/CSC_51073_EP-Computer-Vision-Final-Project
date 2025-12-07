@@ -30,6 +30,9 @@ def main():
             "timesformer",
             # ckpt_path=PROJECT_ROOT / "checkpoints" / "timesformer_best.pt",
             output=PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "results" / f"pretrained_{VIDEO_ID}.csv",
+            temperature=0.9,
+            num_frames=8,
+            timeout=0.5,
         )
     
     # Load video from "src/benchmark/manual_inspection"
@@ -54,7 +57,7 @@ def main():
 
 
     camera_framerate = VIDEO_TO_FPS[VIDEO_ID]
-    normalized_buffer_size = int(c.BUFFER_SIZE / 30 * camera_framerate)
+    buffer_size = int(c.BUFFER_SIZE_SECONDS * camera_framerate)
     
     last_infer_time = time.time()
     cur_frame = c.WARMUP_TIME * camera_framerate
@@ -72,7 +75,7 @@ def main():
             if cur_frame >= len(frames):
                 break
 
-            model.predict(frames[int(cur_frame-normalized_buffer_size):int(cur_frame)])
+            model.predict(frames[int(cur_frame-buffer_size):int(cur_frame)])
             last_infer_time = current_time
         
         else:
