@@ -178,16 +178,15 @@ class WorkoutModel(WorkoutBaseModel):
             if label == "pause":
                 continue
 
-            model_label = c.TIMESFORMER_LABEL_NORMALIZATION.get(label)
+            model_label = c.INVERSE_TIMESFORMER_LABEL_NORMALIZATION.get(label)
             label_id = self.model.config.label2id.get(model_label, None)
 
             if label_id is not None:
                 tracked_probs[label] = logits[0, label_id].item()
 
             else:
-                tracked_probs[label] = 0
-
-
+                tracked_probs[label] = -float("inf")
+        
         # Get items and sort alphabetically by label
         tracked_items = sorted(tracked_probs.items(), key=lambda x: x[0])
         

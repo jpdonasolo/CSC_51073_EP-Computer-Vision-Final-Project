@@ -16,7 +16,7 @@ TIMESFORMER_LABEL_NORMALIZATION = {
 INVERSE_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in TIMESFORMER_LABEL_NORMALIZATION.items()}
 
 # Minimum probability for a prediction to be made
-CONFIDENCE_THRESHOLD = 0.8
+CONFIDENCE_THRESHOLD = 0.9
 
 # Timeout for the inference thread
 INFERENCE_TIMEOUT = .5
