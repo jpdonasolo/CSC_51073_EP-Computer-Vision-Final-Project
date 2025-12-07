@@ -23,6 +23,7 @@ uv run create_finetuning_folders.py [--kaggle-dir <path/to/kaggle/dir> --local-d
 import os
 import shutil
 import argparse
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -147,19 +148,29 @@ class VideoCopier:
     ) -> str:
         """
         Copy a video with a unique name based on dataset and original filename.
+        If the source is .mov or .MOV, convert to .mp4 using ffmpeg.
         """
-        # Get original file extension
+
         original_filename = os.path.basename(src_path)
-        _, ext = os.path.splitext(original_filename)
+        basename, ext = os.path.splitext(original_filename)
         
-        # Generate new filename: label_video_id.ext
-        new_filename = f"{dataset_name}_{original_filename}"
-        
-        # Destination path
-        dst_path = os.path.join(outdir, split, label, new_filename)
-        
-        # Copy the file
-        shutil.copy(src_path, dst_path)
+        # Check file extension for mov or MOV (case-insensitive)
+        if ext.lower() == ".mov":
+            print(f"Converting {original_filename} to .mp4")
+            new_filename = f"{dataset_name}_{basename}.mp4"
+            dst_path = os.path.join(outdir, split, label, new_filename)
+            command = [
+                "ffmpeg", "-y",           # Overwrite output files if they exist
+                "-i", src_path, 
+                dst_path,
+                "-v", "quiet",
+            ]
+            subprocess.run(command, check=True)
+        else:
+            # Use original extension
+            new_filename = f"{dataset_name}_{original_filename}"
+            dst_path = os.path.join(outdir, split, label, new_filename)
+            shutil.copy(src_path, dst_path)
         
         return new_filename
 
