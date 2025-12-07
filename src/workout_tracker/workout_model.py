@@ -88,7 +88,7 @@ class WorkoutBaseModel:
             logger.warning(f"Thread was too slow andfailed to update last prediction")
             return
         
-        logger.info(f"Predicted label: {prediction_label}")
+        logger.debug(f"Predicted label: {prediction_label}")
         
         return prediction_label
     

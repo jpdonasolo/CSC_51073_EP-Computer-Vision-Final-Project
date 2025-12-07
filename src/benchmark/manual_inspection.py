@@ -14,7 +14,7 @@ import workout_tracker.constants as c
 
 
 
-VIDEO_ID = 5
+VIDEO_ID = 6
 
 
 def main():
@@ -37,18 +37,40 @@ def main():
 
     cap.release()
 
+    # Resize frames to 640x480
+    frames = [cv2.resize(frame, (640, 480)) for frame in frames]
+
     print(f"Loaded {len(frames)} frames")
     print(f"First frame shape: {frames[0].shape}")  # (H, W, 3)
 
 
-    fps = 30
-    cur_frame = int(fps * c.WARMUP_TIME)
+    my_camera_framerate = 18.56
+    normalized_buffer_size = int(c.BUFFER_SIZE / 30 * my_camera_framerate)
+    
+    last_infer_time = time.time()
+    cur_frame = c.WARMUP_TIME * my_camera_framerate
 
-    while cur_frame < len(frames) - c.BUFFER_SIZE:
-        model.predict(frames[cur_frame:cur_frame + c.BUFFER_SIZE])
-        cur_frame += int(fps * c.PREDICTION_INTERVAL)
-        time.sleep(c.PREDICTION_INTERVAL)
 
+    while True:
+        current_time = time.time()
+        
+        if current_time - last_infer_time >= c.PREDICTION_INTERVAL:
+            elapsed_time = current_time - last_infer_time
+            elapsed_frames = elapsed_time * my_camera_framerate
+            cur_frame = cur_frame + elapsed_frames
+            print(f"Starting inference at {cur_frame / my_camera_framerate:.2f} seconds")
+            
+            if cur_frame >= len(frames):
+                break
+
+            model.predict(frames[int(cur_frame-normalized_buffer_size):int(cur_frame)])
+            last_infer_time = current_time
+        
+        else:
+            time.sleep(0.01)
+
+    # Wait for the model to finish predicting
+    time.sleep(.5)
     print("Done")
 
 
