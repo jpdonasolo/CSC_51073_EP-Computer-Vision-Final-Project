@@ -31,10 +31,38 @@ VAL_ROOT   = PROJECT_ROOT / "finetuning" / "val"
 
 MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
 BATCH_SIZE = 4
-NUM_EPOCHS = 8
+NUM_EPOCHS = 2
 NUM_WORKERS = 4
 NUM_FRAMES = 8
 LR = 1e-4
+
+def freeze_layers(model, num_unfrozen_last_layers=2):
+    # TimesFormer encoder layers
+    encoder_layers = model.timesformer.encoder.layer
+    total_layers = len(encoder_layers)
+    print(f"Total encoder layers: {total_layers}")
+    print(f"Unfreezing last {num_unfrozen_last_layers} layers")
+
+    for name, param in model.named_parameters():
+
+        # Encoder layers
+        if "timesformer.encoder.layer" in name:
+            match = re.search(r"layer\.(\d+)", name)
+            if match:
+                layer_idx = int(match.group(1))
+                if layer_idx < total_layers - num_unfrozen_last_layers:
+                    param.requires_grad = False
+                else:
+                    param.requires_grad = True
+
+        # Classification head + embeddings
+        else:
+            param.requires_grad = True
+
+    # Debug summary
+    trainable = sum(p.requires_grad for p in model.parameters())
+    total = sum(1 for _ in model.parameters())
+    print(f"Trainable params: {trainable}/{total}")
 
 
 def train_one_epoch(
@@ -122,6 +150,9 @@ def main():
         ignore_mismatched_sizes=True,  # replace original K400 head
     )
     model.to(device)
+    
+    #Unfreeze layers
+    freeze_layers(model, num_unfrozen_last_layers=2)
 
     # Dataloaders
     collate_fn = make_collate_fn(processor)
@@ -143,7 +174,7 @@ def main():
     )
 
     # Optimizer
-    optimizer = AdamW(model.parameters(), lr=LR)
+    optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()),lr=LR) # exclude freezed layers 
 
     best_val_acc = 0.0
     best_ckpt_path = PROJECT_ROOT / "checkpoints"
