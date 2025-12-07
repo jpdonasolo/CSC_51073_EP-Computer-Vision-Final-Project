@@ -156,6 +156,7 @@ class WorkoutModel(WorkoutBaseModel):
             self, 
             model_flag,
             device=None,  #default: None (for local)
+            ckpt_path=None,
             timeout=c.INFERENCE_TIMEOUT,
             num_frames=c.NUM_FRAMES,
             *args,
@@ -177,11 +178,6 @@ class WorkoutModel(WorkoutBaseModel):
         self.timeout = timeout
         self.device = device
         self.num_frames = num_frames
-        
-        ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt"
-        if not ckpt_path.exists():
-            logger.warning(f"Checkpoint not found at {ckpt_path}. Falling back to pretrained model.")
-            ckpt_path = None
             
         self.processor, self.model, self.classes = load_model(
             model_flag,

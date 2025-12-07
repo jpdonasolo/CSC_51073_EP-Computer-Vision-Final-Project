@@ -14,17 +14,18 @@ import workout_tracker.constants as c
 
 
 
-VIDEO_ID = 6
+VIDEO_ID = 1
 
 
 def main():
     model = WorkoutModel(
             "timesformer",
-            output=PROJECT_ROOT / "src" / "benchmark" / f"manual_inspection_{VIDEO_ID}.csv",
+            # ckpt_path=PROJECT_ROOT / "checkpoints" / "timesformer_best.pt",
+            output=PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "results" / f"pretrained_{VIDEO_ID}.csv",
         )
     
     # Load video from "src/benchmark/manual_inspection"
-    video_path = PROJECT_ROOT / "src" / "benchmark" / "manual_inspection_videos" / f"{VIDEO_ID}.mp4"
+    video_path = PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "videos" / f"{VIDEO_ID}.mp4"
     
     # Option 1: Load all frames as numpy arrays
     cap = cv2.VideoCapture(str(video_path))
@@ -38,7 +39,7 @@ def main():
     cap.release()
 
     # Resize frames to 640x480
-    frames = [cv2.resize(frame, (640, 480)) for frame in frames]
+    # frames = [cv2.resize(frame, (640, 480)) for frame in frames]
 
     print(f"Loaded {len(frames)} frames")
     print(f"First frame shape: {frames[0].shape}")  # (H, W, 3)
