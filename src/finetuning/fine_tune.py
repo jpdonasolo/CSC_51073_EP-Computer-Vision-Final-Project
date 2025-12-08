@@ -4,11 +4,13 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Tuple
+import random
+from collections import Counter
 
 import torch
 from torch import nn
 from torch.optim import AdamW
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 import decord
 from decord import VideoReader, cpu
@@ -24,6 +26,7 @@ SRC_DIR = Path(__file__).resolve().parents[1]  # .../src
 sys.path.append(str(SRC_DIR))
 
 from base.utils import VideoFolderDataset, make_collate_fn
+from base.transforms import VideoRandomAugment
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -36,6 +39,13 @@ NUM_EPOCHS = 2
 NUM_WORKERS = 4
 NUM_FRAMES = 8
 LR = 1e-4
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 def freeze_layers(model, num_unfrozen_last_layers=2):
     # TimesFormer encoder layers
@@ -128,8 +138,38 @@ def evaluate(
     return avg_loss, acc
 
 
+# calculate weight
+def make_sample_weights(train_dataset: VideoFolderDataset):
+    """
+    count # of videos in each class from train_dataset
+    -> wight for WeightedRandomSampler
+    - label: int (class index)
+    - small class has more weight
+    """
+    labels = []
+    for i in range(len(train_dataset)):
+        _, lab, _ = train_dataset[i]
+        labels.append(lab)
+
+    label_counts = Counter(labels)
+
+    # index -> class name (for debug)
+    idx_to_class = {v: k for k, v in train_dataset.class_to_idx.items()}
+    human_counts = {idx_to_class[idx]: cnt for idx, cnt in label_counts.items()}
+    print("Label counts (class -> count):", human_counts)
+
+    # target: max
+    target = max(label_counts.values())
+    class_weights = {idx: target / cnt for idx, cnt in label_counts.items()}
+    print("Class weights (class -> weight):",
+          {idx_to_class[idx]: w for idx, w in class_weights.items()})
+
+    sample_weights = [class_weights[lab] for lab in labels]
+    return sample_weights
+
 
 def main():
+    set_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -138,8 +178,8 @@ def main():
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
 
     # Build datasets
-    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"))
-    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"))
+    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"),  use_short_segments = True)
+    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"), use_short_segments = True)
 
     num_classes = len(train_dataset.classes)
     print(f"Classes: {train_dataset.classes}  (num_classes={num_classes})")
@@ -154,16 +194,33 @@ def main():
     
     #Unfreeze layers
     freeze_layers(model, num_unfrozen_last_layers=2)
+    
+    # Define augumentation
+    train_transform = VideoRandomAugment(
+        num_frames=NUM_FRAMES,
+        flip_prob=0.5,
+        temporal_jitter=True,
+    )
 
     # Dataloaders
-    collate_fn = make_collate_fn(processor)
+    train_collate_fn = make_collate_fn(processor, transform=train_transform)
+    val_collate_fn   = make_collate_fn(processor, transform=None) # No augmentation for validation
 
+    # Sampler for class balance
+    sample_weights = make_sample_weights(train_dataset)
+    sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(train_dataset),  # # of samples per 1 epoch
+        replacement=True,
+    )
+    
     train_loader = DataLoader(
         train_dataset,
         batch_size=BATCH_SIZE,
-        shuffle=True,
+        sampler=sampler,
+        shuffle=False, #cannot use shuffle with sampler
         num_workers=NUM_WORKERS,
-        collate_fn=collate_fn,
+        collate_fn=train_collate_fn
     )
 
     val_loader = DataLoader(
@@ -171,7 +228,7 @@ def main():
         batch_size=BATCH_SIZE,
         shuffle=False,
         num_workers=NUM_WORKERS,
-        collate_fn=collate_fn,
+        collate_fn=val_collate_fn,
     )
 
     # Optimizer

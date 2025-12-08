@@ -17,7 +17,7 @@ MIN_FRAMES = 8
 # Video extensions to process
 VIDEO_EXTS = {".mp4", ".mov"}
 
-DELETE_ORIGINAL = True  # set to False if you want to keep originals
+DELETE_ORIGINAL = False  # set to False if you want to keep originals
 
 def is_video_file(path: Path) -> bool:
     return path.suffix.lower() in VIDEO_EXTS

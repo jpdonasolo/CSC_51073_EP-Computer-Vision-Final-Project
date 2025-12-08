@@ -1,11 +1,11 @@
 from pathlib import Path
 from typing import List, Tuple
 import logging
+import re
 
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoImageProcessor, TimesformerForVideoClassification
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -34,7 +34,7 @@ class VideoFolderDataset(Dataset):
     Each subfolder name is treated as a class label.
     """
 
-    def __init__(self, root: Path, num_frames: int = 8, exts=(".mp4", ".MP4")):
+    def __init__(self, root: Path, num_frames: int = 8, exts=(".mp4", ".MP4"), use_short_segments: bool = False):
         """
         root_dir: directory that contains class subfolders (e.g. train/plank, train/squat, ...)
         num_frames: how many frames to sample per video
@@ -42,10 +42,8 @@ class VideoFolderDataset(Dataset):
         """
         self.root = Path(root)
         self.num_frames = num_frames
-        self.exts = set(exts)
-
-        self.root = Path(root)
-        self.num_frames = num_frames
+        self.use_short_segments = use_short_segments
+        
         # normalize extensions to lowercase, e.g. ".MP4" -> ".mp4"
         self.exts = {ext.lower() for ext in exts}
 
@@ -62,11 +60,25 @@ class VideoFolderDataset(Dataset):
         for cls_name in self.classes:
             cls_dir = self.root / cls_name
             for p in cls_dir.iterdir():
-                if p.is_file() and p.suffix.lower() in self.exts:
-                    self.samples.append((p, self.class_to_idx[cls_name]))
+                if not (p.is_file() and p.suffix.lower() in self.exts):
+                    continue
+                
+                if self.use_short_segments: #short  video; expects XXXX_segNNN"
+                    if not re.search(r"_seg\d{3}$", p.stem):
+                        continue
+                
+                self.samples.append((p, self.class_to_idx[cls_name]))
 
         print(f"[Dataset] root={self.root}  classes={self.classes}")
         print(f"[Dataset] Found {len(self.samples)} videos (exts={self.exts})")
+        
+        if self.use_short_segments and len(self.samples) == 0:
+            logger.warning(
+                "[Dataset] use_short_segments=True, but no videos matching the pattern "
+                "'*_segNNN.<ext>' were found under %s. "
+                "Please check that your short video files are named like 'XXXX_seg001.mp4'.",
+                self.root,
+            )
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -92,19 +104,29 @@ class VideoFolderDataset(Dataset):
         return frames, label, str(video_path)
 
 
-def make_collate_fn(processor):
+def make_collate_fn(processor, transform=None):
     """
     Collate function that:
       - takes a list of (frames, label, path)
+      -  (optionally) applies transform to frames
       - passes the list of frames directly to the processor
     """
 
     def collate(batch):
         frames_list, labels, paths = zip(*batch)  # frames_list: tuple of [list of frames]
+        
+        # Augmentation
+        if transform is not None:
+            frames_list_proc = [transform(frames) for frames in frames_list]
+        else:
+            frames_list_proc = frames_list
+        
+        
         # processor can handle a list of videos, each video = list of frames (np.ndarrays)
-        inputs = processor(list(frames_list), return_tensors="pt")
+        inputs = processor(list(frames_list_proc), return_tensors="pt")
         pixel_values = inputs["pixel_values"]  # (B, T, C, H, W)
         labels_tensor = torch.tensor(labels, dtype=torch.long)
+        
         return pixel_values, labels_tensor, list(paths)
 
     return collate
