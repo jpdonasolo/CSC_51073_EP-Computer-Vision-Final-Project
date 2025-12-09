@@ -18,5 +18,4 @@ datasets/
 output.png
 torch-playground/
 main.ipynb
-src/benchmark/manual_inspection/
 *.log

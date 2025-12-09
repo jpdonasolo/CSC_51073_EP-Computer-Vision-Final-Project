@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import time
+import os
 
 import cv2
 import numpy as np
@@ -11,47 +12,53 @@ sys.path.append(str(PROJECT_ROOT / "src/workout_tracker"))
 
 from workout_tracker.workout_model import WorkoutModel
 
-VIDEO_TO_FPS = {
-    1: 29.72,
-    2: 29.94,
-    3: 29.98,
-    4: 29.88,
-    5: 29.95,
-    6: 18.56,
-}
 
-BUFFER_SIZE_SECONDS = 3
-PREDICTION_INTERVAL = 0.2
-WARMUP_TIME = 2.0
+BUFFER_SIZE_SECONDS = 5
+PREDICTION_INTERVAL = 0.15
+WARMUP_TIME = max(2.0, BUFFER_SIZE_SECONDS + 0.2)
 CONFIDENCE_THRESHOLD = 0.95
 ALPHA = 0.8
-TIMEOUT = 0.5
+TIMEOUT = 0.8
 NUM_FRAMES = 8
-TEMPERATURE = 0.9
+TEMPERATURE = 1
+
+USE_FINETUNED_MODEL = False
 
 
 def main():
 
 
-    for video_id in range(1, 7):
-        print(f"Processing video {video_id}")
+    print("Loading model...")
+    ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt" if USE_FINETUNED_MODEL else None
+    filename = "finetuned" if USE_FINETUNED_MODEL else "pretrained"
+    model = WorkoutModel(
+            "timesformer",
+            ckpt_path=ckpt_path,
+            temperature=TEMPERATURE,
+            num_frames=NUM_FRAMES,
+            timeout=TIMEOUT,
+            confidence_threshold=CONFIDENCE_THRESHOLD,
+            alpha=ALPHA,
+        )
+    print(f"Loaded {filename} model")
+    print(f"Parameters: {TEMPERATURE=}, {NUM_FRAMES=}, {TIMEOUT=}, {CONFIDENCE_THRESHOLD=}, {ALPHA=}")
 
-        model = WorkoutModel(
-                "timesformer",
-                ckpt_path=PROJECT_ROOT / "checkpoints" / "timesformer_best.pt",
-                output=PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "results" / f"finetuned_{video_id}.csv",
-                temperature=TEMPERATURE,
-                num_frames=NUM_FRAMES,
-                timeout=TIMEOUT,
-                confidence_threshold=CONFIDENCE_THRESHOLD,
-                alpha=ALPHA,
-            )
+
+    videos = os.listdir(PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "videos")
+    for video_path in videos:
+        video_path = PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "videos" / video_path
+        print(f"Processing video {video_path}")
     
-        # Load video from "src/benchmark/manual_inspection"
-        video_path = PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "videos" / f"{video_id}.mp4"
-        
-        # Option 1: Load all frames as numpy arrays
+        model.set_output(PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "results" / f"{filename}_{video_path.stem}.csv")
+
         cap = cv2.VideoCapture(str(video_path))
+        
+        
+        camera_framerate = cap.get(cv2.CAP_PROP_FPS)
+        buffer_size = int(BUFFER_SIZE_SECONDS * camera_framerate)
+
+        print(f"Camera framerate: {camera_framerate:.2f}")
+        
         frames = []
         while True:
             ret, frame = cap.read()
@@ -61,8 +68,7 @@ def main():
 
         cap.release()
 
-        camera_framerate = VIDEO_TO_FPS[video_id]
-        buffer_size = int(BUFFER_SIZE_SECONDS * camera_framerate)
+        print(f"Video duration: {len(frames) / camera_framerate:.2f} seconds")
         
         last_infer_time = time.time()
         cur_frame = WARMUP_TIME * camera_framerate
