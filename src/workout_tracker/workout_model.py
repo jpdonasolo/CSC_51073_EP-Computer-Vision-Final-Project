@@ -34,7 +34,7 @@ class WorkoutBaseModel:
     Base class for all workout models.
     """
 
-    def __init__(self, output: str = None, alpha: float = 0., up_confidence: float = c.UP_CONFIDENCE_THRESHOLD):
+    def __init__(self, output: str = None, alpha: float = 0., confidence_threshold: float = c.CONFIDENCE_THRESHOLD):
 
         self._last_prediction_timestamp = 0
         self._raw_last_prediction_probs = {"pause": 1.0}
@@ -42,7 +42,7 @@ class WorkoutBaseModel:
         self._prediction_lock = threading.Lock()
         self._label_count_lock = threading.Lock()
         self._alpha = alpha
-        self._up_confidence_threshold = up_confidence
+        self._confidence_threshold = confidence_threshold
         self._recorder = Recorder(output)
 
 
@@ -108,7 +108,7 @@ class WorkoutBaseModel:
 
         # Is the model trying to move from pause to a new prediction?
         # If so, it must surpass UP_CONFIDENCE_THRESHOLD
-        if current_label == "pause" and prediction_prob < self._up_confidence_threshold:
+        if current_label == "pause" and prediction_prob < self._confidence_threshold:
             prediction_label = "pause"
             prediction_prob = 1 - prediction_prob
 

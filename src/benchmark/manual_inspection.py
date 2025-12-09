@@ -23,7 +23,7 @@ VIDEO_TO_FPS = {
 BUFFER_SIZE_SECONDS = 3
 PREDICTION_INTERVAL = 0.2
 WARMUP_TIME = 2.0
-UP_CONFIDENCE_THRESHOLD = 0.95
+CONFIDENCE_THRESHOLD = 0.95
 ALPHA = 0.8
 TIMEOUT = 0.5
 NUM_FRAMES = 8
@@ -43,7 +43,7 @@ def main():
                 temperature=TEMPERATURE,
                 num_frames=NUM_FRAMES,
                 timeout=TIMEOUT,
-                up_confidence=UP_CONFIDENCE_THRESHOLD,
+                confidence_threshold=CONFIDENCE_THRESHOLD,
                 alpha=ALPHA,
             )
     
