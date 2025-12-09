@@ -69,6 +69,8 @@ IGNORED_VIDEOS = {
     ("dataset-bao2", "push-up_test_1.mp4"), #test
     ("dataset-bao2", "push-up_20.mp4"), #train
     ("dataset-bao2", "push-up_21.mp4"), #train
+    ("workoutfitness-video", "squat_27.mp4"),
+    ("workoutfitness-video", "plank_7.mp4"),
 }
 
 def parse_args():
@@ -105,18 +107,17 @@ def create_output_dirs(
         os.makedirs(os.path.join(outdir, "train", label), exist_ok=True)
         os.makedirs(os.path.join(outdir, "val", label), exist_ok=True)
 
-def split_videos(dataset_folder_path: str, train_size: float):
+def split_videos(videos: list[str], train_size: float):
     """ Split videos in train and val.
 
     Args:
-        dataset_folder_path: Path to the folder with the videos files.
+        videos: List of video filenames.
         train_size: Size of the train split.
 
     Returns:
         train_videos: List of train videos filenames.
         val_videos: List of val videos filenames.
     """
-    videos = os.listdir(dataset_folder_path)
     n_videos = len(videos)
     n_train = int(n_videos * train_size)
     
@@ -213,17 +214,19 @@ def main(
         # Create path to dataset folder
         dataset_folder_path = os.path.join(workoutfitness_dir, dataset_folder_name)
         
+
+        dataset_name = "workoutfitness-video"
+        videos = [os.path.join(dataset_folder_path, video) for video in os.listdir(dataset_folder_path)]
+        videos = [video for video in videos if (dataset_name, video) not in IGNORED_VIDEOS]
+
         # Split videos in train and val
-        train_videos, val_videos = split_videos(dataset_folder_path, train_size)
+        train_videos, val_videos = split_videos(videos, train_size)
 
         # Copy train and val videos to outdir with unique names
-        dataset_name = "workoutfitness-video"
         for video in train_videos:
-            src_path = os.path.join(dataset_folder_path, video)
-            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "train", outdir)
+            video_copier.copy_video_with_unique_name(video, dataset_name, label, "train", outdir)
         for video in val_videos:
-            src_path = os.path.join(dataset_folder_path, video)
-            video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "val", outdir)
+            video_copier.copy_video_with_unique_name(video, dataset_name, label, "val", outdir)
 
     
     dataset_bao2_dir = os.path.join(kaggle_dir, "bluebirdss/dataset-bao2/versions/1/data_mae")
