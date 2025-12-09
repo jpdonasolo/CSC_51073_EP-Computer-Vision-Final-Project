@@ -193,6 +193,14 @@ class WorkoutModel(WorkoutBaseModel):
         self.model.to(self.device)
         self.model.eval()
 
+
+        # Make sure all labels are in the model's label2id
+        for label in c.LABEL_TO_COUNT.keys():
+            model_label = c.INVERSE_TIMESFORMER_LABEL_NORMALIZATION.get(label)
+            label_id = self.model.config.label2id.get(model_label, None)
+            if label_id is None:
+                logger.warning(f"Label {label} was not found in model's label2id and will not be tracked")
+
     def _predict_thread(self, frames, prediction_result_queue):
         frames = sample_frames(frames, num_frames=self.num_frames)
         inputs = self.processor(list(frames), return_tensors="pt")

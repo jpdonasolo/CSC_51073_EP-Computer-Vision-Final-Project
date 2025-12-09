@@ -8,7 +8,7 @@ LABEL_TO_COUNT = {
 
 TIMESFORMER_LABEL_NORMALIZATION = {
     "russian-twist": "russian-twist",
-    "push-up": "push-up",
+    "push up": "push-up",
     "squat": "squat",
     "plank": "plank"
 }
