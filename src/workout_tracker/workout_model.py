@@ -146,7 +146,7 @@ class WorkoutBaseModel:
             return (None, None)
         prob = max(probs.values())
         label = max(probs, key=probs.get)
-        if prob < self._up_confidence_threshold:
+        if prob < self._confidence_threshold:
             return ("pause", 1 - prob)
         return label, prob
 
