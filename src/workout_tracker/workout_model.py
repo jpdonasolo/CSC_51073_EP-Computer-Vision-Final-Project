@@ -5,6 +5,8 @@ from queue import Queue
 from pathlib import Path
 import sys; sys.path.append(str(Path(__file__).resolve().parent.parent))
 import logging
+import warnings
+from typing import Literal
 
 import torch
 
@@ -165,6 +167,7 @@ class WorkoutModel(WorkoutBaseModel):
             timeout=c.INFERENCE_TIMEOUT,
             num_frames=c.NUM_FRAMES,
             temperature=c.TEMPERATURE,
+            pause_strategy: Literal["sum_untracked_heads", "confidence_threshold"] = "sum_untracked_heads",
             *args,
             **kwargs
         ):
@@ -184,6 +187,7 @@ class WorkoutModel(WorkoutBaseModel):
         self.timeout = timeout
         self.num_frames = num_frames
         self.temperature = temperature
+        self.pause_strategy = pause_strategy
         self.processor, self.model, self.classes = load_model(
             model_flag,
             checkpoint_path=ckpt_path,
@@ -195,11 +199,15 @@ class WorkoutModel(WorkoutBaseModel):
 
 
         # Make sure all labels are in the model's label2id
+        untracked_labels = []
         for label in c.LABEL_TO_COUNT.keys():
             model_label = c.INVERSE_TIMESFORMER_LABEL_NORMALIZATION.get(label)
             label_id = self.model.config.label2id.get(model_label, None)
             if label_id is None:
-                logger.warning(f"Label {label} was not found in model's label2id and will not be tracked")
+                untracked_labels.append(label)
+
+        if len(untracked_labels) > 0:
+            warnings.warn(f"The following labels were not found in model's label2id and will not be tracked: {untracked_labels}")
 
     def _predict_thread(self, frames, prediction_result_queue):
         frames = sample_frames(frames, num_frames=self.num_frames)
@@ -208,10 +216,29 @@ class WorkoutModel(WorkoutBaseModel):
 
         with torch.no_grad():
             logits = self.model(pixel_values=pixel_values).logits / self.temperature
-        
 
-        tracked_probs = {}
+
+        tracked_logits = {}       
+        if self.pause_strategy == "sum_untracked_heads":
+            # Sum the logits of all labels that are not in LABEL_TO_COUNT.keys()
+            # and use it as the pause probability
+            untracked_labels = [label for label in self.model.config.label2id.keys() if label not in c.LABEL_TO_COUNT.keys()]
+            untracked_label_ids = [self.model.config.label2id[label] for label in untracked_labels]
+
+            if len(untracked_label_ids) < 0:
+                warnings.warn(f"No untracked labels found. Setting pause logit to -inf")
+                tracked_logits["pause"] = float("-inf")
+
+            else:
+                tracked_logits["pause"] = logits[0, untracked_label_ids].sum()
+        
+        else:
+            # Otherwise, set it as -inf for now, as we will update it later
+            tracked_logits["pause"] = float("-inf")
+
         for label in c.LABEL_TO_COUNT.keys():
+            
+            # Pause is not a label in any of our models
             if label == "pause":
                 continue
 
@@ -219,18 +246,22 @@ class WorkoutModel(WorkoutBaseModel):
             label_id = self.model.config.label2id.get(model_label, None)
 
             if label_id is not None:
-                tracked_probs[label] = logits[0, label_id].item()
+                tracked_logits[label] = logits[0, label_id].item()
 
             else:
-                tracked_probs[label] = -float("inf")
+                tracked_logits[label] = -float("inf")
         
         # Get items and sort alphabetically by label
-        tracked_items = sorted(tracked_probs.items(), key=lambda x: x[0])
+        tracked_items = sorted(tracked_logits.items(), key=lambda x: x[0])
         
         labels = [label for label, _ in tracked_items]
         probs = [prob for _, prob in tracked_items]
 
         softmax_probs = torch.softmax(torch.tensor(probs), dim=-1)
         probs = {label: softmax_probs[idx].item() for idx, label in enumerate(labels)}
+
+        if self.pause_strategy == "confidence_threshold":
+            # Set the pause probability to 1 - the probability of the most likely label
+            probs["pause"] = 1 - max(probs.values())
 
         prediction_result_queue.put(probs)
