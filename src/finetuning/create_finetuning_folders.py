@@ -33,7 +33,7 @@ RANDOM_SEED = 1
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-LABELS = ["push-up", "pull-up", "plank", "squat", "russian-twist"]
+LABELS = ["push-up", "plank", "squat", "russian-twist"]
 DEFAULT_LABEL_TO_DIR = {x: x for x in LABELS}
 
 # Bad videos
@@ -202,7 +202,6 @@ def main(
     print(f"Processing Kaggle dataset: workoutfitness-video")
     
     label_to_dir = {
-        "pull-up": "pull Up",
         "russian-twist": "russian twist",
     }
     # Use default label to dir for the rest of the labels
@@ -229,35 +228,33 @@ def main(
             video_copier.copy_video_with_unique_name(video, dataset_name, label, "val", outdir)
 
     
-    dataset_bao2_dir = os.path.join(kaggle_dir, "bluebirdss/dataset-bao2/versions/1/data_mae")
-    assert os.path.exists(dataset_bao2_dir)
-    print(f"Processing Kaggle dataset: dataset-bao2")
+    baole_dataset_dir = os.path.join(kaggle_dir, "bluebirdss/baole-dataset/versions/1/data_mae")
+    assert os.path.exists(baole_dataset_dir)
+    print(f"Processing Kaggle dataset: baole-dataset")
     
     label_to_dir = {
-        "pull-up": "pull up",
         "russian-twist": "russian twist",
     }
     label_to_dir = {k: label_to_dir.get(k, v) for k, v in DEFAULT_LABEL_TO_DIR.items()}
     assert set(label_to_dir.keys()) == set(LABELS)
 
-    # Hardcoded train/val/test counts for dataset-bao2
-    bao2_counts = {
+    # Hardcoded train/val/test counts for baole-dataset
+    baole_counts = {
         # -1 in plank because of IGNORED_VIDEOS
-        "plank": (16 - 1, 5, 1),
-        "push-up": (44, 13, 2),
-        "pull-up": (12, 5, 0),
-        "squat": (40-21, 12-5, 1),
-        "russian-twist": (14, 5, 0),
+        "plank": (24 - 1, 6, 1),
+        "push-up": (53, 13, 2),
+        "squat": (51-21, 12-5, 1),
+        "russian-twist": (23, 6, 2),
     }
-    assert set(bao2_counts.keys()) == set(label_to_dir.keys())
+    assert set(baole_counts.keys()) == set(label_to_dir.keys())
     
-    train_root_dir = os.path.join(dataset_bao2_dir, "train")
-    val_root_dir = os.path.join(dataset_bao2_dir, "val")
-    test_root_dir = os.path.join(dataset_bao2_dir, "test")
+    train_root_dir = os.path.join(baole_dataset_dir, "train")
+    val_root_dir = os.path.join(baole_dataset_dir, "val")
+    test_root_dir = os.path.join(baole_dataset_dir, "test")
     
     for label, dataset_folder_name in label_to_dir.items():
             
-        train_count, val_count, test_count = bao2_counts[label]
+        train_count, val_count, test_count = baole_counts[label]
         total_count = train_count + val_count + test_count
         desired_train_count = int(total_count * train_size)
         
@@ -291,7 +288,7 @@ def main(
             test_videos.extend(videos_to_move)
         
         # Copy videos to outdir with unique names
-        dataset_name = "dataset-bao2"
+        dataset_name = "baole-dataset"
         for video, src_dir in train_videos:
             src_path = os.path.join(src_dir, video)
             video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "train", outdir)

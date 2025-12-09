@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument(
         "--datasets", 
         type=str, 
-        default="workoutfitness-video,dataset-bao2", 
+        default="workoutfitness-video,baole-dataset", 
         help="Comma-separated list of datasets to download. Options: [workoutfitness-video,pushup,UCF101]")
     args = parser.parse_args()
     args.datasets = args.datasets.split(",")
@@ -55,11 +55,10 @@ def main(
         print("Downloading dataset: hasyimabdillah/workoutfitness-video")
         path = kagglehub.dataset_download("hasyimabdillah/workoutfitness-video")
 
-    if "dataset-bao2" in datasets:
-        # https://www.kaggle.com/datasets/bluebirdss/dataset-bao2
-        print("Downloading dataset: bluebirdss/dataset-bao2")
-        path = kagglehub.dataset_download("bluebirdss/dataset-bao2")
-
+    if "baole-dataset" in datasets:
+        # https://www.kaggle.com/datasets/bluebirdss/baole-dataset
+        print("Downloading dataset: bluebirdss/baole-dataset")
+        path = kagglehub.dataset_download("bluebirdss/baole-dataset")
 
     if "pushup" in datasets:
         # https://www.kaggle.com/datasets/mohamadashrafsalama/pushup
