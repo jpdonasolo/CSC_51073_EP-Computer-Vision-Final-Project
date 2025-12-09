@@ -38,37 +38,38 @@ DEFAULT_LABEL_TO_DIR = {x: x for x in LABELS}
 
 # Bad videos
 IGNORED_VIDEOS = {
-    ("dataset-bao2", "plank_206.mp4"), #train
-    ("dataset-bao2", "squat_7.mp4"), #train
-    ("dataset-bao2", "squat_8.mp4"), #train
-    ("dataset-bao2", "squat_9.mp4"), #train
-    ("dataset-bao2", "squat_20.mp4"), #train
-    ("dataset-bao2", "squat_11.mp4"), #train
-    ("dataset-bao2", "squat_12.mp4"), #train
-    ("dataset-bao2", "squat_13.mp4"), #train
-    ("dataset-bao2", "squat_14.mp4"), #train
-    ("dataset-bao2", "squat_16.mp4"), #train
-    ("dataset-bao2", "squat_102.mp4"), #train
-    ("dataset-bao2", "squat_103.mp4"), #train
-    ("dataset-bao2", "squat_105.mp4"), #train
-    ("dataset-bao2", "squat_106.mp4"), #train
-    ("dataset-bao2", "squat_108.mp4"), #train
-    ("dataset-bao2", "squat_114.mp4"), #train
-    ("dataset-bao2", "squat_115.mp4"), #train
-    ("dataset-bao2", "squat_116.mp4"), #train
-    ("dataset-bao2", "squat_118.mp4"), #train
-    ("dataset-bao2", "squat_121.mp4"), #train
-    ("dataset-bao2", "squat_122.mp4"), #train
-    ("dataset-bao2", "squat_123.mp4"), #train
-    ("dataset-bao2", "squat_25.mp4"), #val
-    ("dataset-bao2", "squat_26.mp4"), #val
-    ("dataset-bao2", "squat_27.mp4"), #val
-    ("dataset-bao2", "squat_28.mp4"), #val
-    ("dataset-bao2", "squat_29.mp4"), #val
-    ("dataset-bao2", "push-up_test_2.mp4"), #test
-    ("dataset-bao2", "push-up_test_1.mp4"), #test
-    ("dataset-bao2", "push-up_20.mp4"), #train
-    ("dataset-bao2", "push-up_21.mp4"), #train
+    ("baole-dataset", "russian_twist_15.mp4"), #train
+    ("baole-dataset", "plank_206.mp4"), #train
+    ("baole-dataset", "squat_7.mp4"), #train
+    ("baole-dataset", "squat_8.mp4"), #train
+    ("baole-dataset", "squat_9.mp4"), #train
+    ("baole-dataset", "squat_20.mp4"), #train
+    ("baole-dataset", "squat_11.mp4"), #train
+    ("baole-dataset", "squat_12.mp4"), #train
+    ("baole-dataset", "squat_13.mp4"), #train
+    ("baole-dataset", "squat_14.mp4"), #train
+    ("baole-dataset", "squat_16.mp4"), #train
+    ("baole-dataset", "squat_102.mp4"), #train
+    ("baole-dataset", "squat_103.mp4"), #train
+    ("baole-dataset", "squat_105.mp4"), #train
+    ("baole-dataset", "squat_106.mp4"), #train
+    ("baole-dataset", "squat_108.mp4"), #train
+    ("baole-dataset", "squat_114.mp4"), #train
+    ("baole-dataset", "squat_115.mp4"), #train
+    ("baole-dataset", "squat_116.mp4"), #train
+    ("baole-dataset", "squat_118.mp4"), #train
+    ("baole-dataset", "squat_121.mp4"), #train
+    ("baole-dataset", "squat_122.mp4"), #train
+    ("baole-dataset", "squat_123.mp4"), #train
+    ("baole-dataset", "squat_25.mp4"), #val
+    ("baole-dataset", "squat_26.mp4"), #val
+    ("baole-dataset", "squat_27.mp4"), #val
+    ("baole-dataset", "squat_28.mp4"), #val
+    ("baole-dataset", "squat_29.mp4"), #val
+    ("baole-dataset", "push-up_test_2.mp4"), #test
+    ("baole-dataset", "push-up_test_1.mp4"), #test
+    ("baole-dataset", "push-up_20.mp4"), #train
+    ("baole-dataset", "push-up_21.mp4"), #train
     ("workoutfitness-video", "squat_27.mp4"),
     ("workoutfitness-video", "plank_7.mp4"),
 }
@@ -228,6 +229,7 @@ def main(
             video_copier.copy_video_with_unique_name(video, dataset_name, label, "val", outdir)
 
     
+    dataset_name = "baole-dataset"
     baole_dataset_dir = os.path.join(kaggle_dir, "bluebirdss/baole-dataset/versions/1/data_mae")
     assert os.path.exists(baole_dataset_dir)
     print(f"Processing Kaggle dataset: baole-dataset")
@@ -244,7 +246,7 @@ def main(
         "plank": (24 - 1, 6, 1),
         "push-up": (53, 13, 2),
         "squat": (51-21, 12-5, 1),
-        "russian-twist": (23, 6, 2),
+        "russian-twist": (23-1, 6, 2),
     }
     assert set(baole_counts.keys()) == set(label_to_dir.keys())
     
@@ -288,7 +290,6 @@ def main(
             test_videos.extend(videos_to_move)
         
         # Copy videos to outdir with unique names
-        dataset_name = "baole-dataset"
         for video, src_dir in train_videos:
             src_path = os.path.join(src_dir, video)
             video_copier.copy_video_with_unique_name(src_path, dataset_name, label, "train", outdir)
