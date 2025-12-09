@@ -45,6 +45,8 @@ class WorkoutBaseModel:
         self._confidence_threshold = confidence_threshold
         self._recorder = Recorder(output)
 
+    def set_output(self, output: str):
+        self._recorder = Recorder(output)
 
     def predict(self, *args, **kwargs):
         """
