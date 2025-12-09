@@ -142,7 +142,7 @@ def load_model(model_flag: str, checkpoint_path: Path = None, device: str = "cpu
 
     if model_flag == "timesformer":
         model_name = "facebook/timesformer-base-finetuned-k400"
-        processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
+        processor = AutoImageProcessor.from_pretrained(model_name, use_fast=False)
 
 
         if checkpoint_path:
