@@ -96,7 +96,8 @@ class WorkoutBaseModel:
         logger.debug(f"Predicted label: {prediction_label}")
 
 
-        prediction_start_str = time.strftime('%H:%M:%S.%s', time.localtime())
+        ms = int((prediction_start % 1) * 1000)
+        prediction_start_str = time.strftime('%H:%M:%S', time.localtime(prediction_start)) + f'.{ms:03d}'
         probs["timestamp"] = prediction_start_str
         self._recorder.record(probs)
         
