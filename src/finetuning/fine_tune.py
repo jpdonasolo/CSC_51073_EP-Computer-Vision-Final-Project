@@ -3,9 +3,10 @@ import numpy as np
 import os
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import random
 from collections import Counter
+import wandb
 
 import torch
 from torch import nn
@@ -26,19 +27,22 @@ SRC_DIR = Path(__file__).resolve().parents[1]  # .../src
 sys.path.append(str(SRC_DIR))
 
 from base.utils import VideoFolderDataset, make_collate_fn
-from base.transforms import VideoRandomAugment
+from base.transforms import VideoRandomAugment #change augmentation method here
 
+MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
+BATCH_SIZE = 4
+NUM_EPOCHS = 8
+NUM_WORKERS = 4
+NUM_FRAMES = 8
+LR = 1e-4
+
+BALANCE_MODE = "none"       # "none" / "min" / "2min_flip" / "max_full"
+FRAME_SAMPLING = "even"     # "even", "first", "random", "center"
+NUM_UNFROZEN_LAST_LAYERS = 2
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TRAIN_ROOT = PROJECT_ROOT / "finetuning" / "train"
 VAL_ROOT   = PROJECT_ROOT / "finetuning" / "val"
-
-MODEL_NAME = "facebook/timesformer-base-finetuned-k400"
-BATCH_SIZE = 4
-NUM_EPOCHS = 2
-NUM_WORKERS = 4
-NUM_FRAMES = 8
-LR = 1e-4
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -47,7 +51,7 @@ def set_seed(seed=42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-def freeze_layers(model, num_unfrozen_last_layers=2):
+def freeze_layers(model, num_unfrozen_last_layers):
     # TimesFormer encoder layers
     encoder_layers = model.timesformer.encoder.layer
     total_layers = len(encoder_layers)
@@ -139,12 +143,18 @@ def evaluate(
 
 
 # calculate weight
-def make_sample_weights(train_dataset: VideoFolderDataset):
+def make_sample_weights_and_num_samples(train_dataset: VideoFolderDataset, mode: str = "none") -> Tuple[Optional[List[float]], int, bool]:
     """
-    count # of videos in each class from train_dataset
-    -> wight for WeightedRandomSampler
-    - label: int (class index)
-    - small class has more weight
+    mode:
+    - "none"      : no class balancing (use the original distribution)
+    - "min"       : match the smallest class (downsampling)
+    - "2min_flip" : target = 2 × min_count
+    - "max_full"  : target = max_count
+
+    Returns:
+    - sample_weights: weights passed to WeightedRandomSampler (None when mode="none")
+    - num_samples   : num_samples for the sampler
+    - use_sampler   : whether to use the sampler
     """
     labels = []
     for i in range(len(train_dataset)):
@@ -152,34 +162,66 @@ def make_sample_weights(train_dataset: VideoFolderDataset):
         labels.append(lab)
 
     label_counts = Counter(labels)
+    num_classes = len(label_counts)
+    min_count = min(label_counts.values())
+    max_count = max(label_counts.values())
+    print("Label counts:", label_counts)
+    print(f"[Balance mode={mode}] min={min_count}, max={max_count}, num_classes={num_classes}")
+    
+    if mode == "none":
+        # W/O sampler
+        num_samples = len(train_dataset)
+        return None, num_samples, False
 
-    # index -> class name (for debug)
-    idx_to_class = {v: k for k, v in train_dataset.class_to_idx.items()}
-    human_counts = {idx_to_class[idx]: cnt for idx, cnt in label_counts.items()}
-    print("Label counts (class -> count):", human_counts)
-
-    # target: max
-    target = max(label_counts.values())
-    class_weights = {idx: target / cnt for idx, cnt in label_counts.items()}
-    print("Class weights (class -> weight):",
-          {idx_to_class[idx]: w for idx, w in class_weights.items()})
-
+    if mode == "min":
+        target_per_class = min_count
+    elif mode == "2min_flip":
+        target_per_class = 2 * min_count
+    elif mode == "max_full":
+        target_per_class = max_count
+    else:
+        raise ValueError(f"Unknown balance mode: {mode}")
+    
+    class_weights = {cls_idx: 1.0 / cnt for cls_idx, cnt in label_counts.items()}
     sample_weights = [class_weights[lab] for lab in labels]
-    return sample_weights
+
+    num_samples = target_per_class * num_classes
+
+    print(f"[Balance mode={mode}] num_samples per epoch = {num_samples}")
+    print("Class weights:", class_weights)
+    
+    return sample_weights, num_samples, True
 
 
 def main():
     set_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-
+    
+    # ---------- wandb init ----------
+    wandb.init(
+        project="CV2025 - Video Classification",
+        config={
+            "model_name": MODEL_NAME,
+            "batch_size": BATCH_SIZE,
+            "num_epochs": NUM_EPOCHS,
+            "num_workers": NUM_WORKERS,
+            "num_frames": NUM_FRAMES,
+            "lr": LR,
+            "balance_mode": BALANCE_MODE,
+            "frame_sampling": FRAME_SAMPLING,
+            "num_unfrozen_last_layers": NUM_UNFROZEN_LAST_LAYERS,
+        },
+    )
+    # -------------------------------
+    
     # Load processor and model
     print(f"Loading model: {MODEL_NAME}")
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
 
     # Build datasets
-    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"),  use_short_segments = True)
-    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"), use_short_segments = True)
+    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"),  use_short_segments = True, frame_sampling=FRAME_SAMPLING)
+    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"), use_short_segments = True, frame_sampling=FRAME_SAMPLING)
 
     num_classes = len(train_dataset.classes)
     print(f"Classes: {train_dataset.classes}  (num_classes={num_classes})")
@@ -193,33 +235,72 @@ def main():
     model.to(device)
     
     #Unfreeze layers
-    freeze_layers(model, num_unfrozen_last_layers=2)
+    freeze_layers(model, num_unfrozen_last_layers=NUM_UNFROZEN_LAST_LAYERS)
     
     # Define augumentation
-    train_transform = VideoRandomAugment(
-        num_frames=NUM_FRAMES,
-        flip_prob=0.5,
-        temporal_jitter=True,
-    )
+    if BALANCE_MODE == "none":
+        train_transform = VideoRandomAugment(
+            num_frames=NUM_FRAMES,
+            flip_prob=0.0, #0.5
+            color_jitter_prob=0.0, #True
+            use_augmentation=False
+        )
+        
+    elif BALANCE_MODE == "min": #down sampling
+        train_transform = VideoRandomAugment(
+            num_frames=NUM_FRAMES,
+            flip_prob=0.0,
+            color_jitter_prob=0.0,
+            use_augmentation=False,
+        )
+        
+    elif BALANCE_MODE == "2min_flip":
+        # target = 2 * min_class
+        train_transform = VideoRandomAugment(
+            num_frames=NUM_FRAMES,
+            flip_prob=0.5,       # flip only
+            color_jitter_prob=0.0,
+            use_augmentation=True,
+        )
+        
+    elif BALANCE_MODE == "max_full":
+        # target = max_class, flip + temporal crop
+        train_transform = VideoRandomAugment(
+            num_frames=NUM_FRAMES,
+            flip_prob=0.5,
+            color_jitter_prob=0.5,
+            use_augmentation=True,
+        )
+    else:
+        raise ValueError(f"Unknown BALANCE_MODE: {BALANCE_MODE}")
+
 
     # Dataloaders
     train_collate_fn = make_collate_fn(processor, transform=train_transform)
     val_collate_fn   = make_collate_fn(processor, transform=None) # No augmentation for validation
 
     # Sampler for class balance
-    sample_weights = make_sample_weights(train_dataset)
-    sampler = WeightedRandomSampler(
-        weights=sample_weights,
-        num_samples=len(train_dataset),  # # of samples per 1 epoch
-        replacement=True,
+    sample_weights, num_samples, use_sampler = make_sample_weights_and_num_samples(
+        train_dataset,
+        mode=BALANCE_MODE,
     )
-    
+    if use_sampler:
+        sampler = WeightedRandomSampler(
+            weights=sample_weights,
+            num_samples=num_samples,
+            replacement=True,
+        )
+        shuffle = False
+    else:
+        sampler = None
+        shuffle = True  # BALANCE_MODE == "none": shuffle
+  
     train_loader = DataLoader(
         train_dataset,
         batch_size=BATCH_SIZE,
         sampler=sampler,
-        shuffle=False, #cannot use shuffle with sampler
-        num_workers=NUM_WORKERS,
+        shuffle=shuffle,
+        num_workers=NUM_WORKERS, # with sampler -> False
         collate_fn=train_collate_fn
     )
 
@@ -237,7 +318,7 @@ def main():
     best_val_acc = 0.0
     best_ckpt_path = PROJECT_ROOT / "checkpoints"
     best_ckpt_path.mkdir(parents=True, exist_ok=True)
-    best_ckpt_file = best_ckpt_path / "timesformer_best.pt"
+    best_ckpt_file = best_ckpt_path / f"timesformer_{BALANCE_MODE}_{FRAME_SAMPLING}_{NUM_UNFROZEN_LAST_LAYERS}.pt"
 
     for epoch in range(1, NUM_EPOCHS + 1):
         print(f"\n===== Epoch {epoch}/{NUM_EPOCHS} =====")
@@ -247,6 +328,18 @@ def main():
 
         val_loss, val_acc = evaluate(model, val_loader, device)
         print(f"[Val]   loss={val_loss:.4f}  acc={val_acc*100:.2f}%")
+        
+        # ---------- wandb log ----------
+        wandb.log(
+            {
+                "epoch": epoch,
+                "train/loss": train_loss,
+                "train/acc": train_acc,
+                "val/loss": val_loss,
+                "val/acc": val_acc,
+            }
+        )
+        # -------------------------------
 
         # Save best checkpoint
         if val_acc > best_val_acc:
@@ -265,6 +358,7 @@ def main():
     print("\nTraining finished.")
     print(f"Best validation accuracy: {best_val_acc*100:.2f}%")
     print(f"Best checkpoint: {best_ckpt_file}")
+    wandb.finish()
 
 
 if __name__ == "__main__":

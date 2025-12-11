@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Tuple
 import logging
 import re
+import random
 
 import torch
 from torch.utils.data import Dataset
@@ -34,15 +35,23 @@ class VideoFolderDataset(Dataset):
     Each subfolder name is treated as a class label.
     """
 
-    def __init__(self, root: Path, num_frames: int = 8, exts=(".mp4", ".MP4"), use_short_segments: bool = False):
+    def __init__(self, root: Path, num_frames: int = 8,
+                 exts=(".mp4", ".MP4"), use_short_segments: bool = False,
+                 frame_sampling: str = "even"): #sampling mode: "even", "first", "random", "center"
         """
         root_dir: directory that contains class subfolders (e.g. train/plank, train/squat, ...)
         num_frames: how many frames to sample per video
         exts: tuple of allowed video file extensions
+        frame_sampling:
+            - "even"   : evenly sample frames from the entire video (same as before)
+            - "first"  : take the first num_frames frames
+            - "random" : take num_frames frames from a random contiguous segment
+            - "center" : take num_frames contiguous frames from the middle of the video
         """
         self.root = Path(root)
         self.num_frames = num_frames
         self.use_short_segments = use_short_segments
+        self.frame_sampling = frame_sampling
         
         # normalize extensions to lowercase, e.g. ".MP4" -> ".mp4"
         self.exts = {ext.lower() for ext in exts}
@@ -91,10 +100,42 @@ class VideoFolderDataset(Dataset):
         total = len(vr)
         if total == 0:
             raise RuntimeError(f"No frames found in video: {path}")
-
-        indices = torch.linspace(
+        
+        if self.frame_sampling == "even":
+            indices = torch.linspace(
             0, total - 1, steps=min(self.num_frames, total)
         ).long()
+            
+        elif self.frame_sampling == "first":
+            end = min(self.num_frames, total)
+            indices = torch.arange(0, end)
+        
+        elif self.frame_sampling == "random":
+            if total <= self.num_frames:
+                indices = torch.arange(0, total)
+            else:
+                max_start = total - self.num_frames
+                start = random.randint(0, max_start)
+                indices = torch.arange(start, start + self.num_frames)
+
+        elif self.frame_sampling == "center":
+            if total <= self.num_frames:
+                indices = torch.arange(0, total)
+            else:
+                center = total // 2
+                half = self.num_frames // 2
+                start = center - half
+                if start < 0:
+                    start = 0
+                end = start + self.num_frames
+                if end > total:
+                    end = total
+                    start = end - self.num_frames
+                indices = torch.arange(start, end)
+                
+        else:
+            raise ValueError(f"Unknown frame_sampling mode: {self.frame_sampling}")
+        
         frames = [vr[int(i)].asnumpy() for i in indices]
         return frames
 
