@@ -38,7 +38,7 @@ LR = 1e-4
 
 BALANCE_MODE = "none"       # "none" / "min" / "2min_flip" / "max_full"
 FRAME_SAMPLING = "even"     # "even", "first", "random", "center"
-NUM_UNFROZEN_LAST_LAYERS = 2
+NUM_UNFROZEN_LAYERS = 2
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TRAIN_ROOT = PROJECT_ROOT / "finetuning" / "train"
@@ -51,12 +51,12 @@ def set_seed(seed=42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-def freeze_layers(model, num_unfrozen_last_layers):
+def freeze_layers(model, num_unfrozen_layers):
     # TimesFormer encoder layers
     encoder_layers = model.timesformer.encoder.layer
     total_layers = len(encoder_layers)
     print(f"Total encoder layers: {total_layers}")
-    print(f"Unfreezing last {num_unfrozen_last_layers} layers")
+    print(f"Unfreezing last {num_unfrozen_layers} layers")
 
     for name, param in model.named_parameters():
 
@@ -65,7 +65,7 @@ def freeze_layers(model, num_unfrozen_last_layers):
             match = re.search(r"layer\.(\d+)", name)
             if match:
                 layer_idx = int(match.group(1))
-                if layer_idx < total_layers - num_unfrozen_last_layers:
+                if layer_idx < total_layers - num_unfrozen_layers:
                     param.requires_grad = False
                 else:
                     param.requires_grad = True
@@ -193,7 +193,11 @@ def make_sample_weights_and_num_samples(train_dataset: VideoFolderDataset, mode:
     return sample_weights, num_samples, True
 
 
-def main():
+def run_experiment(
+    balance_mode: str,
+    frame_sampling: str,
+    num_unfrozen_layers: int,
+    seed: int = 42):
     set_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -208,9 +212,9 @@ def main():
             "num_workers": NUM_WORKERS,
             "num_frames": NUM_FRAMES,
             "lr": LR,
-            "balance_mode": BALANCE_MODE,
-            "frame_sampling": FRAME_SAMPLING,
-            "num_unfrozen_last_layers": NUM_UNFROZEN_LAST_LAYERS,
+            "balance_mode": balance_mode,
+            "frame_sampling": frame_sampling,
+            "num_unfrozen_layers": num_unfrozen_layers,
         },
     )
     # -------------------------------
@@ -220,8 +224,8 @@ def main():
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
 
     # Build datasets
-    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"),  use_short_segments = True, frame_sampling=FRAME_SAMPLING)
-    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"), use_short_segments = True, frame_sampling=FRAME_SAMPLING)
+    train_dataset = VideoFolderDataset(TRAIN_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"),  use_short_segments = True, frame_sampling=frame_sampling)
+    val_dataset = VideoFolderDataset(VAL_ROOT, num_frames=NUM_FRAMES, exts=(".mp4", ".MP4"), use_short_segments = True, frame_sampling=frame_sampling)
 
     num_classes = len(train_dataset.classes)
     print(f"Classes: {train_dataset.classes}  (num_classes={num_classes})")
@@ -235,10 +239,10 @@ def main():
     model.to(device)
     
     #Unfreeze layers
-    freeze_layers(model, num_unfrozen_last_layers=NUM_UNFROZEN_LAST_LAYERS)
+    freeze_layers(model, num_unfrozen_layers=num_unfrozen_layers)
     
     # Define augumentation
-    if BALANCE_MODE == "none":
+    if balance_mode == "none":
         train_transform = VideoRandomAugment(
             num_frames=NUM_FRAMES,
             flip_prob=0.0, #0.5
@@ -246,7 +250,7 @@ def main():
             use_augmentation=False
         )
         
-    elif BALANCE_MODE == "min": #down sampling
+    elif balance_mode == "min": #down sampling
         train_transform = VideoRandomAugment(
             num_frames=NUM_FRAMES,
             flip_prob=0.0,
@@ -254,7 +258,7 @@ def main():
             use_augmentation=False,
         )
         
-    elif BALANCE_MODE == "2min_flip":
+    elif balance_mode == "2min_flip":
         # target = 2 * min_class
         train_transform = VideoRandomAugment(
             num_frames=NUM_FRAMES,
@@ -263,7 +267,7 @@ def main():
             use_augmentation=True,
         )
         
-    elif BALANCE_MODE == "max_full":
+    elif balance_mode == "max_full":
         # target = max_class, flip + temporal crop
         train_transform = VideoRandomAugment(
             num_frames=NUM_FRAMES,
@@ -272,7 +276,7 @@ def main():
             use_augmentation=True,
         )
     else:
-        raise ValueError(f"Unknown BALANCE_MODE: {BALANCE_MODE}")
+        raise ValueError(f"Unknown BALANCE_MODE: {balance_mode}")
 
 
     # Dataloaders
@@ -282,7 +286,7 @@ def main():
     # Sampler for class balance
     sample_weights, num_samples, use_sampler = make_sample_weights_and_num_samples(
         train_dataset,
-        mode=BALANCE_MODE,
+        mode=balance_mode,
     )
     if use_sampler:
         sampler = WeightedRandomSampler(
@@ -318,7 +322,7 @@ def main():
     best_val_acc = 0.0
     best_ckpt_path = PROJECT_ROOT / "checkpoints"
     best_ckpt_path.mkdir(parents=True, exist_ok=True)
-    best_ckpt_file = best_ckpt_path / f"timesformer_{BALANCE_MODE}_{FRAME_SAMPLING}_{NUM_UNFROZEN_LAST_LAYERS}.pt"
+    best_ckpt_file = best_ckpt_path / f"timesformer_{balance_mode}_{frame_sampling}_{num_unfrozen_layers}.pt"
 
     for epoch in range(1, NUM_EPOCHS + 1):
         print(f"\n===== Epoch {epoch}/{NUM_EPOCHS} =====")
@@ -361,5 +365,12 @@ def main():
     wandb.finish()
 
 
+def main():
+    run_experiment(
+        balance_mode=BALANCE_MODE,
+        frame_sampling=FRAME_SAMPLING,
+        num_unfrozen_layers=NUM_UNFROZEN_LAYERS,
+    )
+    
 if __name__ == "__main__":
     main()
