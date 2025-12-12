@@ -1,6 +1,7 @@
 import os
 import glob
 from pathlib import Path
+import random
 
 import cv2
 import numpy as np
@@ -44,7 +45,7 @@ LABEL_NORMALIZATION = {
 
 # ===== load frames with OpenCV =====
 
-def load_frames(path, num_frames=8):
+def load_frames(path, num_frames=8, mode: str = "even"):
     """
     Load evenly-spaced frames from a video using OpenCV.
     - Returns a list of exactly `num_frames` RGB numpy arrays.
@@ -61,8 +62,43 @@ def load_frames(path, num_frames=8):
         cap.release()
         return None
 
-    # Choose indices evenly from [0, frame_count - 1]
-    indices = np.linspace(0, frame_count - 1, num_frames, dtype=int)
+    # --- choose indices depending on mode ---
+    if mode == "even": # Choose indices evenly from [0, frame_count - 1]
+        # spread indices over the whole video
+        if frame_count >= num_frames:
+            indices = np.linspace(0, frame_count - 1, num_frames, dtype=int)
+        else:
+            # video shorter than num_frames: just use all frames
+            indices = np.arange(0, frame_count, dtype=int)
+
+    elif mode == "first":
+        end = min(num_frames, frame_count)
+        indices = np.arange(0, end, dtype=int)
+
+    elif mode == "random":
+        if frame_count <= num_frames:
+            indices = np.arange(0, frame_count, dtype=int)
+        else:
+            max_start = frame_count - num_frames
+            start = random.randint(0, max_start)
+            indices = np.arange(start, start + num_frames, dtype=int)
+
+    elif mode == "center":
+        if frame_count <= num_frames:
+            indices = np.arange(0, frame_count, dtype=int)
+        else:
+            center = frame_count // 2
+            half = num_frames // 2
+            start = center - half
+            if start < 0:
+                start = 0
+            end = start + num_frames
+            if end > frame_count:
+                end = frame_count
+                start = end - num_frames
+            indices = np.arange(start, end, dtype=int)
+    else:
+        raise ValueError(f"Unknown sampling mode: {mode}")
 
     frames = []
     for idx in indices:
@@ -88,37 +124,18 @@ def load_frames(path, num_frames=8):
 
     return frames
 
+# ===== Evaluation for one sampling mode =====
 
-# ===== Main evaluation =====
-
-def main():
-    print(f"Dataset root: {ROOT}")
-    print(f"Loading pretrained model: {MODEL_NAME}")
-
-    processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
-    model = TimesformerForVideoClassification.from_pretrained(MODEL_NAME)
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
-
-    # Get category names from folder structure
-    categories = sorted(
-        d for d in os.listdir(ROOT)
-        if os.path.isdir(os.path.join(ROOT, d))
-    )
-    print("Categories:", categories)
-
+def evaluate_zero_shot(model, processor, device, categories, mode: str):
     # Accuracy stats per category
     stats = {cat: {"correct": 0, "total": 0} for cat in categories}
 
-    # Loop over each category and each video
     for category in categories:
         video_paths = glob.glob(os.path.join(ROOT, category, "*"))
 
         for video_path in video_paths:
-            frames = load_frames(video_path, NUM_FRAMES)
+            frames = load_frames(video_path, NUM_FRAMES, mode=mode)
             if frames is None:
-                # Skip unreadable / problematic videos
                 continue
 
             # Prepare inputs for Timesformer
@@ -138,8 +155,8 @@ def main():
             if pred_norm == category:
                 stats[category]["correct"] += 1
 
-    # ===== Print results =====
-    print("\n=== Zero-shot accuracy ===")
+    # ===== Print results for this mode =====
+    print(f"\n=== Zero-shot accuracy ({mode}) ===")
     total_correct = 0
     total_total = 0
 
@@ -159,6 +176,28 @@ def main():
 
     print(f"\nOverall accuracy : {overall_acc:6.2f}%  ({total_correct}/{total_total})")
 
+# ===== Main evaluation =====
+
+def main():
+    print(f"Dataset root: {ROOT}")
+    print(f"Loading pretrained model: {MODEL_NAME}")
+
+    processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
+    model = TimesformerForVideoClassification.from_pretrained(MODEL_NAME)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    model.eval()
+
+    # Get category names from folder structure
+    categories = sorted(
+        d for d in os.listdir(ROOT)
+        if os.path.isdir(os.path.join(ROOT, d))
+    )
+    print("Categories:", categories)
+
+    for mode in ["even", "center", "random", "first"]:
+        evaluate_zero_shot(model, processor, device, categories, mode)
 
 if __name__ == "__main__":
     main()
