@@ -198,6 +198,7 @@ class WorkoutModel(WorkoutBaseModel):
         self.num_frames = num_frames
         self.temperature = temperature
         self.pause_strategy = pause_strategy
+        self.model_flag = model_flag
 
         if model_flag == "finetuned":
             ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_max_full_even_6.pt"
@@ -286,6 +287,8 @@ class WorkoutModel(WorkoutBaseModel):
             else:
                 tracked_logits[label] = -float("inf")
         
+        tracked_logits = self._correct_logits(tracked_logits)
+
         # Get items and sort alphabetically by label
         tracked_items = sorted(tracked_logits.items(), key=lambda x: x[0])
         
@@ -300,3 +303,11 @@ class WorkoutModel(WorkoutBaseModel):
             probs["pause"] = 1 - max(probs.values())
 
         prediction_result_queue.put(probs)
+    
+    def _correct_logits(self, tracked_logits: dict) -> dict:
+        if self.model_flag == "finetuned":
+            # Squat is overpredicted, rwssian twist is underpredicted
+            tracked_logits["squat"] -= 1
+            tracked_logits["russian-twist"] += 1
+        
+        return tracked_logits
