@@ -10,6 +10,7 @@ import constants as c
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=str, default=None)
+    parser.add_argument("--model", type=str, default="finetuned")
     return parser.parse_args()
 
 def format_time(seconds):
@@ -44,7 +45,7 @@ def main(output: str = None):
 
     # Initialize dummy model
     model = WorkoutModel(
-        "timesformer",
+        model_flag=model,
         output=output,
         alpha=0.8
     )
@@ -145,4 +146,4 @@ def main(output: str = None):
 
 if __name__ == "__main__":
     args = parse_args()
-    main(args.output)
+    main(args.output, args.model)

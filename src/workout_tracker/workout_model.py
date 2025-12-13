@@ -7,7 +7,8 @@ import sys; sys.path.append(str(Path(__file__).resolve().parent.parent))
 import logging
 import warnings
 from typing import Literal
-
+import subprocess
+import shutil
 import torch
 
 import constants as c
@@ -189,6 +190,16 @@ class WorkoutModel(WorkoutBaseModel):
         self.num_frames = num_frames
         self.temperature = temperature
         self.pause_strategy = pause_strategy
+
+        if model_flag == "finetuned":
+            ckpt_path = PROJECT_ROOT / "checkpoints" / " timesformer_max_full_even_6.pt"
+            if not ckpt_path.exists():
+                print("Downloading finetuned model...")
+                
+                command = ["git", "clone", "https://github.com/fcakyon/video-transformers.git", "video-transformers"]
+                subprocess.run(command, check=True)
+                shutil.move("video-transformers/checkpoints/timesformer_max_full_even_6.pt", ckpt_path)
+
         self.processor, self.model, self.classes = load_model(
             model_flag,
             checkpoint_path=ckpt_path,
