@@ -19,10 +19,6 @@ import subprocess
 import argparse
 
 
-if not os.path.exists("rar/unrar"):
-    raise FileNotFoundError("`unrar` executable not found. Download and unpack it from https://www.win-rar.com/download.html")
-
-
 ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 
@@ -67,6 +63,10 @@ def main(
 
 
     if "UCF101" in datasets:
+
+        if not os.path.exists("rar/unrar"):
+            raise FileNotFoundError("`unrar` executable not found. Download and unpack it from https://www.win-rar.com/download.html")
+
         # https://www.crcv.ucf.edu/data/UCF101.php
         print("Downloading dataset: UCF101")
         url = "https://www.crcv.ucf.edu/data/UCF101/UCF101.rar"
