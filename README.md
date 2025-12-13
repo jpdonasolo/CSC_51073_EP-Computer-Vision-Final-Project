@@ -9,17 +9,18 @@ This will ignore heavy videos that were uploaded to the repository in previous v
 ## Running the code
 This project uses `uv` as a package manager. You can download it [here](https://docs.astral.sh/uv/guides/install-python/).
 
-Then, just run from the root directory:
+This code was tested mostly in Ubuntu. If running from mac, please change the following line in `src/workout_trackerworkout_tracker.py` from
+`cap = cv2.VideoCapture(0)`
+to
+`cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)`
 
+Then, run from the root directory:
 `uv run src/workout_tracker/workout_tracker.py`
 
 By default, the code will download and run the finetuned model. To use the pretrained model, just add `--model pretrained`.
 
 ## Finetuning
 If you intend to run the finetuning code, make sure to follow this steps:
-
-### rar
-Some of the datasets are downloaded as `.rar` files. To `unrar` them, make sure to download the [executable](https://www.win-rar.com/download.html?&L=0) and unzip it in the root folder.
 
 ### Kagglehub
 The project also downloads datasets from [Kaggle](https://www.kaggle.com/) using `kagglehub`. In order to work properly, your machine must have an autentication API token. You can read about it [here](https://www.kaggle.com/docs/api).
