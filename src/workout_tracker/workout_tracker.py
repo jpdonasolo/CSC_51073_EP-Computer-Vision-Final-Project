@@ -21,7 +21,10 @@ def format_time(seconds):
     return f"{m:02d}:{s:02d}"
 
 
-def main(output: str = None):
+def main(
+        output: str = None,
+        model: str = "finetuned",
+):
     # Initialize camera (on macOS, AVFOUNDATION is usually the stable backend)
     cap = cv2.VideoCapture(0)
 

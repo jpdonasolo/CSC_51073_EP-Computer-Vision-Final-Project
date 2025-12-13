@@ -192,16 +192,27 @@ class WorkoutModel(WorkoutBaseModel):
         self.pause_strategy = pause_strategy
 
         if model_flag == "finetuned":
-            ckpt_path = PROJECT_ROOT / "checkpoints" / " timesformer_max_full_even_6.pt"
+            ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_max_full_even_6.pt"
             if not ckpt_path.exists():
                 print("Downloading finetuned model...")
                 
-                command = ["git", "clone", "https://github.com/fcakyon/video-transformers.git", "video-transformers"]
-                subprocess.run(command, check=True)
-                shutil.move("video-transformers/checkpoints/timesformer_max_full_even_6.pt", ckpt_path)
+                
+                temp_folder_name = Path("pretrained_model")
+                shutil.rmtree(temp_folder_name, ignore_errors=True)
+                
+                command = ["git", "clone", "https://huggingface.co/MTomita/CSC_51073_EP-Computer-Vision-Final-Project", temp_folder_name]
+                completed_process = subprocess.run(command, check=True)
+                completed_process.check_returncode()
+                
+                ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(temp_folder_name / "timesformer_max_full_even_6.pt", ckpt_path)
+                shutil.rmtree(temp_folder_name, ignore_errors=True)
+        
+        elif model_flag == "pretrained":
+            ckpt_path = None
 
         self.processor, self.model, self.classes = load_model(
-            model_flag,
+            "timesformer",
             checkpoint_path=ckpt_path,
             device=self.device,
         )
