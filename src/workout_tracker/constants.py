@@ -24,7 +24,10 @@ INVERSE_PRETRAINED_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in PRETRAINE
 INVERSE_FINETUNED_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in FINETUNED_TIMESFORMER_LABEL_NORMALIZATION.items()}
 
 # Minimum probability for a prediction to be made
-CONFIDENCE_THRESHOLD = 0.9
+CONFIDENCE_THRESHOLD = 0.75
+
+# Smoothing factor for predictions
+EXP_ALPHA = 0.3
 
 # Timeout for the inference thread
 INFERENCE_TIMEOUT = .5
@@ -41,6 +44,4 @@ PREDICTION_INTERVAL = 0.2
 # Time before first prediction (seconds)
 WARMUP_TIME = 2.0
 
-# Temeprature lower than one to counterweight the fact that
-# "pause" is the most likely label.
-TEMPERATURE = 0.9
+TEMPERATURE = 1.3
