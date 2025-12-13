@@ -1,14 +1,23 @@
+import argparse
 import sys
-from pathlib import Path
 import time
 import os
+from typing import Literal
+from pathlib import Path
+
 
 import cv2
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 sys.path.append(str(PROJECT_ROOT / "src/workout_tracker"))
+
+
+CHECKPOINTS_PATH = Path("/Data/masayo.tomita/CV/CSC_51073_EP-Computer-Vision-Final-Project/checkpoints/")
 
 from workout_tracker.workout_model import WorkoutModel
 
@@ -20,28 +29,62 @@ CONFIDENCE_THRESHOLD = 0.95
 ALPHA = 0.8
 TIMEOUT = 0.8
 NUM_FRAMES = 8
-TEMPERATURE = 1
+TEMPERATURE = .8
 
-USE_FINETUNED_MODEL = False
+USE_FINETUNED_MODEL = True
 
 
-def main():
+def build_output_path(
+    use_finetuned_model: bool, 
+    ckpt_path: Path, 
+    video_path: Path,
+    temperature: float,
+):
+    base_path = PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "results"
+    
+    if use_finetuned_model:
+        stem = f"{ckpt_path.stem}_{video_path.stem}"
+    else:
+        stem = f"pretrained_{video_path.stem}"
+    
+    # Add temperature string to stem if temperature is not the module-level constant
+    if temperature != 1.:
+        stem += f"_temperature={temperature}"
+
+    output_path = base_path / f"{stem}.csv"
+    return output_path
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--balance-mode", type=str, default="none")
+    parser.add_argument("--frame-sampling", type=str, default="even")
+    parser.add_argument("--num-unfrozen-layers", type=int, default=2)
+    parser.add_argument("--temperature", type=float, default=TEMPERATURE)
+    return parser.parse_args()
+
+
+def main(
+    balance_mode: Literal["none", "min", "2min_flip", "max_full"],
+    frame_sampling: Literal["even", "first", "random", "center"],
+    num_unfrozen_layers: int = Literal[2, 4, 6],
+    temperature: float = TEMPERATURE,
+):
 
 
     print("Loading model...")
-    ckpt_path = PROJECT_ROOT / "checkpoints" / "timesformer_best.pt" if USE_FINETUNED_MODEL else None
-    filename = "finetuned" if USE_FINETUNED_MODEL else "pretrained"
+    ckpt_path = CHECKPOINTS_PATH / f"timesformer_{balance_mode}_{frame_sampling}_{num_unfrozen_layers}.pt" if USE_FINETUNED_MODEL else None
     model = WorkoutModel(
             "timesformer",
             ckpt_path=ckpt_path,
-            temperature=TEMPERATURE,
+            temperature=temperature,
             num_frames=NUM_FRAMES,
             timeout=TIMEOUT,
             confidence_threshold=CONFIDENCE_THRESHOLD,
             alpha=ALPHA,
         )
-    print(f"Loaded {filename} model")
-    print(f"Parameters: {TEMPERATURE=}, {NUM_FRAMES=}, {TIMEOUT=}, {CONFIDENCE_THRESHOLD=}, {ALPHA=}")
+    print(f"Loaded {ckpt_path} model")
+    print(f"Parameters: {temperature=}, {NUM_FRAMES=}, {TIMEOUT=}, {CONFIDENCE_THRESHOLD=}, {ALPHA=}")
 
 
     videos = os.listdir(PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "videos")
@@ -49,7 +92,10 @@ def main():
         video_path = PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "videos" / video_path
         print(f"Processing video {video_path}")
     
-        model.set_output(PROJECT_ROOT / "src" / "benchmark" / "manual_inspection" / "results" / f"{filename}_{video_path.stem}.csv")
+
+        out_path = build_output_path(USE_FINETUNED_MODEL, ckpt_path, video_path, temperature)
+        
+        model.set_output(out_path)
 
         cap = cv2.VideoCapture(str(video_path))
         
@@ -96,4 +142,5 @@ def main():
         time.sleep(.5)
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(**args.__dict__)

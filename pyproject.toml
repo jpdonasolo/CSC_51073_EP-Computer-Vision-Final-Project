@@ -17,6 +17,9 @@ dependencies = [
     "pillow>=11.3.0",
     "torchvision>=0.23.0",
     "opencv-python>=4.11.0.86",
+    "seaborn>=0.13.2",
+    "pyarrow>=21.0.0",
+    "prettytable>=3.16.0",
 ]
 
 [tool.uv.workspace]

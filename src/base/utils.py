@@ -6,6 +6,8 @@ import random
 
 import torch
 from torch.utils.data import Dataset
+
+from transformers import logging as transformers_logging
 from transformers import AutoImageProcessor, TimesformerForVideoClassification
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -228,6 +230,7 @@ def load_finetuned_model(base_model_name, ckpt_path, device):
     label2id = {v: k for k, v in id2label.items()}
 
     # Initialize model with correct head & label mapping
+    transformers_logging.set_verbosity_error()
     model = TimesformerForVideoClassification.from_pretrained(
         base_model_name,
         num_labels=num_classes,

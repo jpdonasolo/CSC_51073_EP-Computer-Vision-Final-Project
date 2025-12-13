@@ -198,11 +198,15 @@ class WorkoutModel(WorkoutBaseModel):
         self.model.to(self.device)
         self.model.eval()
 
+        if ckpt_path is None:
+            self.inverse_label_normalization = c.INVERSE_PRETRAINED_TIMESFORMER_LABEL_NORMALIZATION
+        else:
+            self.inverse_label_normalization = c.INVERSE_FINETUNED_TIMESFORMER_LABEL_NORMALIZATION
 
         # Make sure all labels are in the model's label2id
         untracked_labels = []
         for label in c.LABEL_TO_COUNT.keys():
-            model_label = c.INVERSE_TIMESFORMER_LABEL_NORMALIZATION.get(label)
+            model_label = self.inverse_label_normalization.get(label)
             label_id = self.model.config.label2id.get(model_label, None)
             if label_id is None:
                 untracked_labels.append(label)
@@ -243,7 +247,7 @@ class WorkoutModel(WorkoutBaseModel):
             if label == "pause":
                 continue
 
-            model_label = c.INVERSE_TIMESFORMER_LABEL_NORMALIZATION.get(label)
+            model_label = self.inverse_label_normalization.get(label)
             label_id = self.model.config.label2id.get(model_label, None)
 
             if label_id is not None:
