@@ -82,13 +82,15 @@ class WorkoutBaseModel:
             return
     
         probs = prediction_result_queue.get()
-        prediction_label = max(probs, key=probs.get)
-        prediction_prob = probs[prediction_label]
+        smoothed_probs = self._smooth_probs(probs)
         
+        prediction_label = max(smoothed_probs, key=smoothed_probs.get)
+        prediction_prob = smoothed_probs[prediction_label]
+
         prediction_label, prediction_prob = self.apply_confidence_threshold(prediction_label, prediction_prob)
 
+        updated = self.update_probs(prediction_start, probs, smoothed_probs)
         self.increment_label_count(prediction_label)
-        updated = self.update_probs(prediction_start, probs)
 
         if not updated:
             logger.warning(f"Thread was too slow and failed to update last prediction")
@@ -103,6 +105,17 @@ class WorkoutBaseModel:
         self._recorder.record(probs)
         
         return prediction_label
+
+    def _smooth_probs(self, probs: dict) -> dict:
+        """
+        Smooths the probabilities using the alpha parameter.
+        """
+        default_prob = 1 / len(c.LABEL_TO_COUNT.keys())
+        smoothed_probs = {
+            label: self._alpha * self._smoothed_last_prediction_probs.get(label, default_prob) + (1 - self._alpha) * prob \
+                for label, prob in probs.items()
+        }
+        return smoothed_probs
     
     def apply_confidence_threshold(self, prediction_label: str, prediction_prob: float) -> tuple[str, float]:
         """
@@ -112,9 +125,7 @@ class WorkoutBaseModel:
         probs = self._smoothed_last_prediction_probs
         current_label = max(probs, key=probs.get)
 
-        # Is the model trying to move from pause to a new prediction?
-        # If so, it must surpass UP_CONFIDENCE_THRESHOLD
-        if current_label == "pause" and prediction_prob < self._confidence_threshold:
+        if current_label != "pause" and prediction_prob < self._confidence_threshold:
             prediction_label = "pause"
             prediction_prob = 1 - prediction_prob
 
@@ -127,7 +138,7 @@ class WorkoutBaseModel:
         with self._label_count_lock:
             c.LABEL_TO_COUNT[label] += c.PREDICTION_INTERVAL
         
-    def update_probs(self, starting_time: float, probs: dict):
+    def update_probs(self, starting_time: float, probs: dict, smoothed_probs: dict):
         """
         Thread safe update of the last prediction.
         """
@@ -139,11 +150,8 @@ class WorkoutBaseModel:
             self._last_prediction_timestamp = starting_time
             self._raw_last_prediction_probs = probs
 
-            default_prob = 1 / len(c.LABEL_TO_COUNT.keys())
-            self._smoothed_last_prediction_probs = {
-                label: self._alpha * self._smoothed_last_prediction_probs.get(label, default_prob) + (1 - self._alpha) * prob \
-                    for label, prob in probs.items()
-            }
+            self._smoothed_last_prediction_probs = smoothed_probs
+
             return True
         
     def get_last_prediction(self) -> tuple[str, float]:
