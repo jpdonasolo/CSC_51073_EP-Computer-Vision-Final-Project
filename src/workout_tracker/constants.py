@@ -6,14 +6,22 @@ LABEL_TO_COUNT = {
     "pause": 0,
 }
 
-TIMESFORMER_LABEL_NORMALIZATION = {
+PRETRAINED_TIMESFORMER_LABEL_NORMALIZATION = {
     "russian-twist": "russian-twist",
     "push up": "push-up",
     "squat": "squat",
     "plank": "plank"
 }
 
-INVERSE_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in TIMESFORMER_LABEL_NORMALIZATION.items()}
+FINETUNED_TIMESFORMER_LABEL_NORMALIZATION = {
+    "russian-twist": "russian-twist",
+    "push-up": "push-up",
+    "squat": "squat",
+    "plank": "plank"
+}
+
+INVERSE_PRETRAINED_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in PRETRAINED_TIMESFORMER_LABEL_NORMALIZATION.items()}
+INVERSE_FINETUNED_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in FINETUNED_TIMESFORMER_LABEL_NORMALIZATION.items()}
 
 # Minimum probability for a prediction to be made
 CONFIDENCE_THRESHOLD = 0.9
