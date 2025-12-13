@@ -20,6 +20,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "pyarrow>=21.0.0",
     "prettytable>=3.16.0",
+    "video-transformers>=0.0.6",
 ]
 
 [tool.uv.workspace]
