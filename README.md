@@ -22,6 +22,9 @@ Then, run from the root directory:
 
 By default, the code will download and run the finetuned model. To use the pretrained model, just add `--model pretrained`.
 
+⚠️ WARNING ⚠️
+Depending on your machine, the predictions might not run fast enough, making threads accumulate and GPU memory to explode. If threads start to timeout and the times on the screen stop increasing, try increasing `PREDICTION_INTERVAL` in `src/workout_tracker/constants.py`.
+
 ## Finetuning
 If you intend to run the finetuning code, make sure to follow these steps:
 
