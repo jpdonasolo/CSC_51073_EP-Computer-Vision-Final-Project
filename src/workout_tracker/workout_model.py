@@ -307,7 +307,7 @@ class WorkoutModel(WorkoutBaseModel):
     def _correct_logits(self, tracked_logits: dict) -> dict:
         if self.model_flag == "finetuned":
             # Squat is overpredicted, rwssian twist is underpredicted
-            tracked_logits["squat"] -= 1
-            tracked_logits["russian-twist"] += 1
+            tracked_logits["squat"] -= 2
+            tracked_logits["russian-twist"] += 2
         
         return tracked_logits

@@ -27,7 +27,7 @@ INVERSE_FINETUNED_TIMESFORMER_LABEL_NORMALIZATION = {v: k for k, v in FINETUNED_
 CONFIDENCE_THRESHOLD = 0.75
 
 # Smoothing factor for predictions
-EXP_ALPHA = 0.3
+EXP_ALPHA = 0.5
 
 # Timeout for the inference thread
 INFERENCE_TIMEOUT = .5
